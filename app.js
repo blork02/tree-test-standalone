@@ -201,9 +201,12 @@
         '<tr class="pretest-row">' +
           '<td class="pretest-row-label">' + esc(row) + '</td>' +
           cols.map(function (col, j) {
+            var id = 'pt-' + i + '-' + j;
             return (
               '<td class="pretest-cell">' +
-                '<input type="radio" name="pt-' + i + '" value="' + j + '">' +
+                '<label for="' + id + '">' +
+                  '<input type="radio" id="' + id + '" name="pt-' + i + '" value="' + j + '">' +
+                '</label>' +
               '</td>'
             );
           }).join('') +
