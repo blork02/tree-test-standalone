@@ -137,6 +137,7 @@ body {
 
 li.has-children.open > .tree-parent::before {
   transform: rotate(90deg);
+  color: #1d4ed8;
 }
 
 .tree-parent:hover {
@@ -144,13 +145,39 @@ li.has-children.open > .tree-parent::before {
   color: #111827;
 }
 
+/* Open parent: subtle tint so it reads as "the heading of what's below" */
+li.has-children.open > .tree-parent {
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+li.has-children.open > .tree-parent:hover {
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
 .tree-children {
   display: none;
-  padding-left: 1.25rem;
+  padding-left: 0.875rem;
 }
 
 li.has-children.open > .tree-children {
   display: block;
+  border-left: 2px solid #bfdbfe;
+  margin-left: 0.9rem;
+}
+
+/* Nested branch nodes: progressively smaller so depth reads clearly */
+.tree-children .tree-parent {
+  font-size: 0.875rem;
+  padding: 0.5rem 0.5rem;
+  color: #374151;
+}
+
+.tree-children .tree-children .tree-parent {
+  font-size: 0.8125rem;
+  color: #4b5563;
+  padding: 0.4rem 0.5rem;
 }
 
 .tree-leaf {
