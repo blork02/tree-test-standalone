@@ -4,6 +4,15 @@
 
 const CONFIG = {
 
+  /* ── Result email addresses ──────────────────────────────────────────────
+     Participants are shown these addresses on the download screen and asked
+     to email their CSV to both addresses.
+     ──────────────────────────────────────────────────────────────────────── */
+  resultEmails: [
+    'mathieu.bernimont@belgiantrain.be',
+    'nina.deproft@belgiantrain.be',
+  ],
+
   /* ── i18n strings ─────────────────────────────────────────────────────── */
   i18n: {
     fr: {
@@ -45,8 +54,15 @@ const CONFIG = {
       otherCommentsQ:      'Autres commentaires ou suggestions ?',
       btnSubmitPostStudy:  'Terminer',
       thankyouTitle:       'Merci pour votre participation !',
-      thankyouBody:        'Vos résultats sont prêts. Cliquez sur le bouton ci-dessous pour les télécharger et les transmettre à l\'organisateur de l\'étude.',
+      thankyouBody:        'Vous avez complété tous les scénarios.',
+      dlNotice:            'Vos résultats ne sont pas sauvegardés en ligne. Veuillez suivre les 2 étapes ci-dessous pour nous les envoyer.',
+      dlStep1Title:        'Téléchargez votre fichier de résultats',
+      dlStep2Title:        'Envoyez le fichier en pièce jointe par e-mail',
       btnDownload:         'Télécharger les résultats (CSV)',
+      btnOpenEmail:        'Ouvrir l\'e-mail',
+      dlAttachReminder:    'N\'oubliez pas de joindre le fichier CSV téléchargé à l\'e-mail avant de l\'envoyer.',
+      emailSubject:        'HR Service Desk – Résultats de participation',
+      emailBody:           'Bonjour,\n\nVeuillez trouver en pièce jointe les résultats de ma participation à l\'étude RH.\n\nCordialement,',
       welcomeTitle:        'Bienvenue dans cette courte étude, et merci de votre participation !',
       welcomeBody:         'Cette étude dure au maximum 15 minutes. Votre participation nous aidera à améliorer les catégories du Service Desk RH, afin que vous puissiez trouver plus facilement la bonne rubrique pour vos questions RH.',
       btnWelcomeNext:      'Continuer',
@@ -106,8 +122,15 @@ const CONFIG = {
       otherCommentsQ:      'Andere opmerkingen of suggesties?',
       btnSubmitPostStudy:  'Afronden',
       thankyouTitle:       'Bedankt voor uw deelname!',
-      thankyouBody:        'Uw resultaten zijn klaar. Klik op de knop hieronder om ze te downloaden en door te sturen naar de organisator van het onderzoek.',
+      thankyouBody:        'U heeft alle scenario\'s voltooid.',
+      dlNotice:            'Uw resultaten worden niet online opgeslagen. Volg de 2 stappen hieronder om ze naar ons te sturen.',
+      dlStep1Title:        'Download uw resultatenbestand',
+      dlStep2Title:        'Stuur het bestand als bijlage per e-mail',
       btnDownload:         'Resultaten downloaden (CSV)',
+      btnOpenEmail:        'E-mail opstellen',
+      dlAttachReminder:    'Vergeet niet het gedownloade CSV-bestand als bijlage toe te voegen voor u de e-mail verstuurt.',
+      emailSubject:        'HR Service Desk – Deelnameresultaten',
+      emailBody:           'Hallo,\n\nIn bijlage vindt u de resultaten van mijn deelname aan de HR-studie.\n\nMet vriendelijke groeten,',
       welcomeTitle:        'Welkom bij dit kort onderzoek, en bedankt dat u meedoet!',
       welcomeBody:         'U werkt maximaal 15 minuten. Uw deelname helpt ons de categorieën van het HR Service Desk overzichtelijker te maken, zodat u sneller bij de juiste plek terechtkomt met uw HR-vragen.',
       btnWelcomeNext:      'Doorgaan',

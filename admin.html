@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — HR Tree Test</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #f3f4f6;
+      color: #1f2937;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────────────── */
+    .admin-header {
+      background: white;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 0 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      height: 56px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .admin-title {
+      font-size: 0.9375rem;
+      font-weight: 700;
+      color: #1f2937;
+      flex-shrink: 0;
+    }
+
+    .admin-tabs {
+      display: flex;
+      flex: 1;
+    }
+
+    .tab-btn {
+      padding: 0 1.25rem;
+      height: 56px;
+      border: none;
+      background: none;
+      font-size: 0.875rem;
+      font-family: inherit;
+      color: #6b7280;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover { color: #1f2937; }
+    .tab-btn.active { color: #1d4ed8; border-bottom-color: #1d4ed8; font-weight: 600; }
+
+    .btn-export {
+      padding: 0.5rem 1.25rem;
+      background: #1d4ed8;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+
+    .btn-export:hover { background: #1e40af; }
+
+    /* ── Tab panels ───────────────────────────────────────────────────────── */
+    .tab-panel { display: none; padding: 1.5rem; max-width: 1280px; margin: 0 auto; }
+    .tab-panel.active { display: block; }
+
+    .panel-intro {
+      font-size: 0.875rem;
+      color: #6b7280;
+      margin-bottom: 1.25rem;
+      line-height: 1.6;
+    }
+
+    .panel-intro strong { color: #374151; }
+
+    /* ── Tree tab ─────────────────────────────────────────────────────────── */
+    .tree-admin {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .tree-admin-header {
+      display: grid;
+      grid-template-columns: 1fr 1fr 210px 80px;
+      background: #f9fafb;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    .tree-admin-header span {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #9ca3af;
+    }
+
+    .tree-admin-header span:last-child { text-align: right; }
+
+    .tree-node-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 210px 80px;
+      border-bottom: 1px solid #f3f4f6;
+      align-items: stretch;
+      min-height: 38px;
+    }
+
+    .tree-node-row:last-child { border-bottom: none; }
+    .tree-node-row:hover { background: #fafafa; }
+    .tree-node-row.is-branch { background: #fafafa; }
+    .tree-node-row.is-branch:hover { background: #f3f4f6; }
+
+    .tree-node-label {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 3px 0.5rem 3px 0;
+    }
+
+    .tree-type-icon {
+      font-size: 0.6rem;
+      color: #d1d5db;
+      flex-shrink: 0;
+      width: 10px;
+      text-align: center;
+      margin-right: 2px;
+    }
+
+    .tree-input {
+      flex: 1;
+      min-width: 0;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      padding: 0.3rem 0.4rem;
+      font-size: 0.875rem;
+      font-family: inherit;
+      color: #1f2937;
+      background: transparent;
+      line-height: 1.4;
+    }
+
+    .tree-input:focus {
+      outline: none;
+      border-color: #1d4ed8;
+      background: white;
+    }
+
+    .tree-input-fr { color: #6b7280; }
+    .tree-input-fr:focus { color: #1f2937; }
+
+    .tree-fr-cell {
+      padding: 3px 0.5rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .tree-node-ids {
+      padding: 0 0.5rem;
+      font-size: 0.68rem;
+      color: #9ca3af;
+      font-family: 'SF Mono', 'Cascadia Code', ui-monospace, monospace;
+      line-height: 1.4;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+    }
+
+    .tree-node-actions {
+      padding: 0 0.5rem;
+      display: flex;
+      gap: 0.25rem;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .btn-tree-add, .btn-tree-del {
+      padding: 0.2rem 0.35rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      background: white;
+      font-size: 0.7rem;
+      cursor: pointer;
+      color: #6b7280;
+      font-family: inherit;
+      transition: background 0.1s, color 0.1s, border-color 0.1s;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    .btn-tree-add:hover { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+    .btn-tree-del:hover { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+
+    .tree-add-root {
+      padding: 0.75rem 1rem;
+      border-top: 1px solid #e5e7eb;
+      background: #f9fafb;
+    }
+
+    .btn-add-root {
+      padding: 0.375rem 0.875rem;
+      border: 1.5px dashed #d1d5db;
+      border-radius: 4px;
+      background: white;
+      font-size: 0.8125rem;
+      cursor: pointer;
+      color: #6b7280;
+      font-family: inherit;
+      transition: background 0.1s, border-color 0.1s, color 0.1s;
+    }
+
+    .btn-add-root:hover { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
+
+    /* ── Tasks tab ────────────────────────────────────────────────────────── */
+    .tasks-list { display: flex; flex-direction: column; gap: 1rem; }
+
+    .task-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .task-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.625rem 1rem;
+      background: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+      gap: 1rem;
+    }
+
+    .task-card-num {
+      font-size: 0.8125rem;
+      font-weight: 700;
+      color: #1d4ed8;
+      flex-shrink: 0;
+    }
+
+    .task-id-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      flex: 1;
+    }
+
+    .task-id-label {
+      font-size: 0.75rem;
+      color: #9ca3af;
+      flex-shrink: 0;
+    }
+
+    .task-id-input {
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 0.2rem 0.4rem;
+      font-size: 0.75rem;
+      font-family: 'SF Mono', 'Cascadia Code', ui-monospace, monospace;
+      color: #374151;
+      width: 120px;
+    }
+
+    .task-id-input:focus { outline: none; border-color: #1d4ed8; }
+
+    .btn-task-del {
+      padding: 0.2rem 0.625rem;
+      border: 1px solid #fca5a5;
+      border-radius: 4px;
+      background: white;
+      color: #dc2626;
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.1s;
+      flex-shrink: 0;
+    }
+
+    .btn-task-del:hover { background: #fef2f2; }
+
+    .task-card-body {
+      padding: 1rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .task-field { display: flex; flex-direction: column; gap: 0.375rem; }
+
+    .task-field-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .task-textarea {
+      border: 1.5px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 0.5rem 0.625rem;
+      font-size: 0.875rem;
+      font-family: inherit;
+      color: #1f2937;
+      resize: vertical;
+      line-height: 1.5;
+      min-height: 80px;
+    }
+
+    .task-textarea:focus { outline: none; border-color: #1d4ed8; }
+
+    .task-select {
+      border: 1.5px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 0.375rem 0.5rem;
+      font-size: 0.8125rem;
+      font-family: inherit;
+      color: #1f2937;
+      background: white;
+      margin-top: 0.5rem;
+    }
+
+    .task-select:focus { outline: none; border-color: #1d4ed8; }
+    .task-select.invalid { border-color: #f59e0b; background: #fffbeb; }
+
+    .btn-add-task {
+      padding: 0.75rem 1.5rem;
+      border: 1.5px dashed #d1d5db;
+      border-radius: 8px;
+      background: white;
+      color: #6b7280;
+      font-size: 0.875rem;
+      font-family: inherit;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.1s, border-color 0.1s, color 0.1s;
+      margin-top: 1rem;
+    }
+
+    .btn-add-task:hover { background: #eff6ff; color: #1d4ed8; border-color: #93c5fd; }
+
+    /* ── Instructions tab ─────────────────────────────────────────────────── */
+    .instructions-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    .instr-section {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .instr-section-header {
+      padding: 0.625rem 1rem;
+      background: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: #374151;
+    }
+
+    .instr-textarea {
+      flex: 1;
+      width: 100%;
+      border: none;
+      padding: 1rem;
+      font-size: 0.8125rem;
+      font-family: 'SF Mono', 'Cascadia Code', ui-monospace, monospace;
+      color: #1f2937;
+      resize: vertical;
+      line-height: 1.6;
+      min-height: 320px;
+      background: white;
+    }
+
+    .instr-textarea:focus { outline: none; background: #fafffe; }
+
+    /* ── Export toast ─────────────────────────────────────────────────────── */
+    #export-toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: #15803d;
+      color: white;
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 200;
+    }
+  </style>
+</head>
+<body>
+
+<div id="admin-app">
+  <header class="admin-header">
+    <span class="admin-title">HR Tree Test — Admin</span>
+    <nav class="admin-tabs">
+      <button class="tab-btn active" onclick="showTab('tree')">Boom / Arbre</button>
+      <button class="tab-btn" onclick="showTab('tasks')">Taken / Tâches</button>
+      <button class="tab-btn" onclick="showTab('instructions')">Instructies / Instructions</button>
+    </nav>
+    <button class="btn-export" onclick="exportConfig()">⬇ Export config.js</button>
+  </header>
+
+  <div id="tab-tree" class="tab-panel active">
+    <p class="panel-intro">
+      Bewerk de structuur en labels van de boom. De NL- en FR-labels staan naast elkaar.
+      Gebruik <strong>+ Sub</strong> om een subcategorie toe te voegen en <strong>✕</strong> om een knooppunt te verwijderen.
+      Klik <strong>Export config.js</strong> om uw wijzigingen op te slaan.
+    </p>
+    <div id="tree-wrap"></div>
+  </div>
+
+  <div id="tab-tasks" class="tab-panel">
+    <p class="panel-intro">
+      Bewerk de scenario's en de correcte antwoorden per taak.
+      De dropdowns tonen alleen de bladknooppunten van de huidige boom.
+    </p>
+    <div id="tasks-wrap" class="tasks-list"></div>
+    <button class="btn-add-task" onclick="addTask()">+ Taak toevoegen / + Ajouter une tâche</button>
+  </div>
+
+  <div id="tab-instructions" class="tab-panel">
+    <p class="panel-intro">
+      Bewerk de HTML-instructietekst die aan deelnemers wordt getoond vóór de taken.
+      HTML-tags zijn toegestaan (b, i, ol, li, p, strong, …).
+    </p>
+    <div class="instructions-grid">
+      <div class="instr-section">
+        <div class="instr-section-header">Nederlands (NL)</div>
+        <textarea class="instr-textarea" id="instr-nl"
+          oninput="state.instructions_nl = this.value"></textarea>
+      </div>
+      <div class="instr-section">
+        <div class="instr-section-header">Français (FR)</div>
+        <textarea class="instr-textarea" id="instr-fr"
+          oninput="state.instructions_fr = this.value"></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="export-toast">✓ config.js gedownload</div>
+
+<script src="config.js"></script>
+<script>
+'use strict';
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   State
+───────────────────────────────────────────────────────────────────────────── */
+var state = {
+  tasks:           JSON.parse(JSON.stringify(CONFIG.tasks)),
+  instructions_nl: CONFIG.i18n.nl.instructionsBodyHtml,
+  instructions_fr: CONFIG.i18n.fr.instructionsBodyHtml,
+};
+
+var mergedTree = mergeTreeChildren(
+  (CONFIG.trees.nl.children || []),
+  (CONFIG.trees.fr.children || [])
+);
+
+var nodeCounter = 1000;
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Helpers
+───────────────────────────────────────────────────────────────────────────── */
+function esc(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Tree merge / split
+───────────────────────────────────────────────────────────────────────────── */
+function mergeTreeChildren(nlNodes, frNodes) {
+  return (nlNodes || []).map(function (nlNode, i) {
+    var frNode = (frNodes || [])[i] || { id: '', label: '' };
+    var node = {
+      id_nl:    nlNode.id,
+      label_nl: nlNode.label,
+      id_fr:    frNode.id,
+      label_fr: frNode.label,
+    };
+    if (nlNode.children && nlNode.children.length > 0) {
+      node.children = mergeTreeChildren(nlNode.children, frNode.children || []);
+    }
+    return node;
+  });
+}
+
+function splitNL(merged) {
+  return (merged || []).map(function (node) {
+    var result = { id: node.id_nl, label: node.label_nl };
+    if (node.children && node.children.length > 0) result.children = splitNL(node.children);
+    return result;
+  });
+}
+
+function splitFR(merged) {
+  return (merged || []).map(function (node) {
+    var result = { id: node.id_fr, label: node.label_fr };
+    if (node.children && node.children.length > 0) result.children = splitFR(node.children);
+    return result;
+  });
+}
+
+function collectLeaves(nodes, result) {
+  result = result || [];
+  (nodes || []).forEach(function (node) {
+    if (!node.children || node.children.length === 0) {
+      result.push(node);
+    } else {
+      collectLeaves(node.children, result);
+    }
+  });
+  return result;
+}
+
+/* Navigate to a node by dot-separated index path, e.g. "0.2.1" */
+function getByPath(path) {
+  var parts = path.split('.').map(Number);
+  var array = mergedTree;
+  for (var i = 0; i < parts.length - 1; i++) {
+    array = array[parts[i]].children;
+  }
+  var index = parts[parts.length - 1];
+  return { array: array, index: index, node: array[index] };
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Tree tab
+───────────────────────────────────────────────────────────────────────────── */
+function renderTreeTab() {
+  var wrap = document.getElementById('tree-wrap');
+  wrap.innerHTML =
+    '<div class="tree-admin">' +
+      '<div class="tree-admin-header">' +
+        '<span>Nederlands</span>' +
+        '<span>Français</span>' +
+        '<span>Node IDs</span>' +
+        '<span>Acties</span>' +
+      '</div>' +
+      '<div id="tree-rows">' + renderTreeNodes(mergedTree, '', 0) + '</div>' +
+      '<div class="tree-add-root">' +
+        '<button class="btn-add-root" onclick="addRootNode()">' +
+          '+ Hoofdcategorie toevoegen / + Catégorie principale' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+}
+
+function renderTreeNodes(nodes, parentPath, depth) {
+  return (nodes || []).map(function (node, i) {
+    var path        = parentPath !== '' ? parentPath + '.' + i : String(i);
+    var hasChildren = node.children && node.children.length > 0;
+    var indent      = depth * 20 + 8;
+    var isBranch    = hasChildren ? ' is-branch' : '';
+
+    var row =
+      '<div class="tree-node-row' + isBranch + '">' +
+        /* NL label */
+        '<div class="tree-node-label" style="padding-left:' + indent + 'px">' +
+          '<span class="tree-type-icon">' + (hasChildren ? '▶' : '·') + '</span>' +
+          '<input class="tree-input tree-input-nl"' +
+            ' value="' + esc(node.label_nl) + '"' +
+            ' placeholder="NL label"' +
+            ' oninput="updateLabel(\'' + path + '\', \'label_nl\', this.value)">' +
+        '</div>' +
+        /* FR label */
+        '<div class="tree-fr-cell">' +
+          '<input class="tree-input tree-input-fr"' +
+            ' value="' + esc(node.label_fr) + '"' +
+            ' placeholder="traduction française"' +
+            ' oninput="updateLabel(\'' + path + '\', \'label_fr\', this.value)">' +
+        '</div>' +
+        /* IDs */
+        '<div class="tree-node-ids">' +
+          '<span>' + esc(node.id_nl) + '</span>' +
+          '<span>' + esc(node.id_fr) + '</span>' +
+        '</div>' +
+        /* Actions */
+        '<div class="tree-node-actions">' +
+          '<button class="btn-tree-add" title="Subcategorie toevoegen"' +
+            ' onclick="addChildNode(\'' + path + '\')">+Sub</button>' +
+          '<button class="btn-tree-del" title="Verwijderen"' +
+            ' onclick="deleteNode(\'' + path + '\')">✕</button>' +
+        '</div>' +
+      '</div>';
+
+    var children = hasChildren ? renderTreeNodes(node.children, path, depth + 1) : '';
+    return row + children;
+  }).join('');
+}
+
+function updateLabel(path, field, value) {
+  var ref = getByPath(path);
+  if (ref.node) ref.node[field] = value;
+}
+
+function addRootNode() {
+  nodeCounter++;
+  var n = nodeCounter;
+  mergedTree.push({
+    id_nl: 'nl_new' + n, label_nl: '',
+    id_fr: 'fr_new' + n, label_fr: '',
+  });
+  renderTreeTab();
+}
+
+function addChildNode(path) {
+  var ref = getByPath(path);
+  if (!ref.node) return;
+  nodeCounter++;
+  var n         = nodeCounter;
+  var pidNl     = ref.node.id_nl || 'nl';
+  var pidFr     = ref.node.id_fr || 'fr';
+  if (!ref.node.children) ref.node.children = [];
+  ref.node.children.push({
+    id_nl: pidNl + '_new' + n, label_nl: '',
+    id_fr: pidFr + '_new' + n, label_fr: '',
+  });
+  renderTreeTab();
+}
+
+function deleteNode(path) {
+  var ref = getByPath(path);
+  if (!ref.node) return;
+  var hasChildren = ref.node.children && ref.node.children.length > 0;
+  if (hasChildren && !confirm('Dit knooppunt heeft subcategorieën. Alles verwijderen?')) return;
+  ref.array.splice(ref.index, 1);
+  renderTreeTab();
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Tasks tab
+───────────────────────────────────────────────────────────────────────────── */
+function renderTasksTab() {
+  var leaves   = collectLeaves(mergedTree);
+  var nlLeaves = leaves.filter(function (l) { return l.id_nl; });
+  var frLeaves = leaves.filter(function (l) { return l.id_fr; });
+
+  var wrap = document.getElementById('tasks-wrap');
+  wrap.innerHTML = state.tasks.map(function (task, i) {
+    return renderTaskCard(task, i, nlLeaves, frLeaves);
+  }).join('');
+}
+
+function renderTaskCard(task, i, nlLeaves, frLeaves) {
+  function opts(leaves, idKey, labelKey, current) {
+    var html = '<option value="">-- kies een blad / choisir --</option>';
+    leaves.forEach(function (l) {
+      var sel = l[idKey] === current ? ' selected' : '';
+      html += '<option value="' + esc(l[idKey]) + '"' + sel + '>' +
+        esc(l[labelKey] || l[idKey]) + '</option>';
+    });
+    return html;
+  }
+
+  var nlValid = task.correct_nl === '' || nlLeaves.some(function (l) { return l.id_nl === task.correct_nl; });
+  var frValid = task.correct_fr === '' || frLeaves.some(function (l) { return l.id_fr === task.correct_fr; });
+
+  return (
+    '<div class="task-card">' +
+      '<div class="task-card-header">' +
+        '<span class="task-card-num">Taak ' + (i + 1) + '</span>' +
+        '<div class="task-id-wrap">' +
+          '<span class="task-id-label">ID:</span>' +
+          '<input class="task-id-input" value="' + esc(task.id) + '"' +
+            ' oninput="updateTaskField(' + i + ', \'id\', this.value)">' +
+        '</div>' +
+        '<button class="btn-task-del" onclick="deleteTask(' + i + ')">Verwijderen</button>' +
+      '</div>' +
+      '<div class="task-card-body">' +
+        '<div class="task-field">' +
+          '<span class="task-field-label">Scenario NL</span>' +
+          '<textarea class="task-textarea"' +
+            ' oninput="updateTaskField(' + i + ', \'scenario_nl\', this.value)">' +
+            esc(task.scenario_nl) +
+          '</textarea>' +
+          '<span class="task-field-label">Correct antwoord (NL)</span>' +
+          '<select class="task-select' + (nlValid ? '' : ' invalid') + '"' +
+            ' onchange="updateTaskField(' + i + ', \'correct_nl\', this.value)">' +
+            opts(nlLeaves, 'id_nl', 'label_nl', task.correct_nl) +
+          '</select>' +
+        '</div>' +
+        '<div class="task-field">' +
+          '<span class="task-field-label">Scénario FR</span>' +
+          '<textarea class="task-textarea"' +
+            ' oninput="updateTaskField(' + i + ', \'scenario_fr\', this.value)">' +
+            esc(task.scenario_fr) +
+          '</textarea>' +
+          '<span class="task-field-label">Réponse correcte (FR)</span>' +
+          '<select class="task-select' + (frValid ? '' : ' invalid') + '"' +
+            ' onchange="updateTaskField(' + i + ', \'correct_fr\', this.value)">' +
+            opts(frLeaves, 'id_fr', 'label_fr', task.correct_fr) +
+          '</select>' +
+        '</div>' +
+      '</div>' +
+    '</div>'
+  );
+}
+
+function updateTaskField(i, field, value) {
+  state.tasks[i][field] = value;
+}
+
+function addTask() {
+  nodeCounter++;
+  state.tasks.push({
+    id:          'task' + nodeCounter,
+    scenario_nl: '',
+    scenario_fr: '',
+    correct_nl:  '',
+    correct_fr:  '',
+  });
+  renderTasksTab();
+}
+
+function deleteTask(i) {
+  if (!confirm('Taak ' + (i + 1) + ' verwijderen?')) return;
+  state.tasks.splice(i, 1);
+  renderTasksTab();
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Export config.js
+───────────────────────────────────────────────────────────────────────────── */
+function serializeTreeNode(node, indent) {
+  var next   = indent + '    ';
+  var idPart = 'id: ' + JSON.stringify(node.id) + ', label: ' + JSON.stringify(node.label);
+  if (!node.children || node.children.length === 0) {
+    return '{ ' + idPart + ' }';
+  }
+  var children = node.children.map(function (c) {
+    return next + serializeTreeNode(c, next);
+  }).join(',\n');
+  return '{ ' + idPart + ', children: [\n' + children + '\n' + indent + '  ]}';
+}
+
+function serializeTreeChildren(nodes, indent) {
+  var inner = indent + '  ';
+  if (!nodes || nodes.length === 0) return '[]';
+  return '[\n' + nodes.map(function (n) {
+    return inner + serializeTreeNode(n, inner);
+  }).join(',\n') + '\n' + indent + ']';
+}
+
+function serializeI18nValue(val) {
+  if (Array.isArray(val)) {
+    return '[\n        ' +
+      val.map(function (v) { return JSON.stringify(v); }).join(',\n        ') +
+      '\n      ]';
+  }
+  return JSON.stringify(val);
+}
+
+function serializeI18nLang(langKey, overrides) {
+  var original = CONFIG.i18n[langKey];
+  var out = '    ' + langKey + ': {\n';
+  Object.keys(original).forEach(function (key) {
+    var val = (overrides && Object.prototype.hasOwnProperty.call(overrides, key))
+      ? overrides[key] : original[key];
+    out += '      ' + key + ': ' + serializeI18nValue(val) + ',\n';
+  });
+  out += '    }';
+  return out;
+}
+
+function exportConfig() {
+  /* Validate correct answers exist in the current tree */
+  var leaves   = collectLeaves(mergedTree);
+  var nlIds    = leaves.map(function (l) { return l.id_nl; });
+  var frIds    = leaves.map(function (l) { return l.id_fr; });
+  var warnings = [];
+  state.tasks.forEach(function (task, i) {
+    if (task.correct_nl && nlIds.indexOf(task.correct_nl) === -1) {
+      warnings.push('Taak ' + (i + 1) + ': correct_nl "' + task.correct_nl + '" niet gevonden in boom');
+    }
+    if (task.correct_fr && frIds.indexOf(task.correct_fr) === -1) {
+      warnings.push('Taak ' + (i + 1) + ': correct_fr "' + task.correct_fr + '" niet gevonden in boom');
+    }
+  });
+  if (warnings.length > 0 && !confirm('Waarschuwingen:\n\n' + warnings.join('\n') + '\n\nToch exporteren?')) {
+    return;
+  }
+
+  var nlChildren = splitNL(mergedTree);
+  var frChildren = splitFR(mergedTree);
+
+  var lines = [];
+  lines.push('/* ══════════════════════════════════════════════════════════════════════════');
+  lines.push('   config.js — edit tasks, trees, and i18n strings here');
+  lines.push('   ══════════════════════════════════════════════════════════════════════════ */');
+  lines.push('');
+  lines.push('const CONFIG = {');
+  lines.push('');
+
+  /* resultEmails */
+  var emails = CONFIG.resultEmails || [];
+  lines.push('  /* ── Result email addresses ────────────────────────────────────────────── */');
+  lines.push('  resultEmails: [');
+  emails.forEach(function (e) { lines.push('    ' + JSON.stringify(e) + ','); });
+  lines.push('  ],');
+  lines.push('');
+
+  /* i18n */
+  lines.push('  /* ── i18n strings ─────────────────────────────────────────────────────── */');
+  lines.push('  i18n: {');
+  lines.push(serializeI18nLang('fr', { instructionsBodyHtml: state.instructions_fr }) + ',');
+  lines.push(serializeI18nLang('nl', { instructionsBodyHtml: state.instructions_nl }));
+  lines.push('  },');
+  lines.push('');
+
+  /* Tasks */
+  lines.push('  /* ── Tasks ────────────────────────────────────────────────────────────── */');
+  lines.push('  tasks: [');
+  state.tasks.forEach(function (task, i) {
+    lines.push('    {');
+    lines.push('      id:          ' + JSON.stringify(task.id) + ',');
+    lines.push('      scenario_nl: ' + JSON.stringify(task.scenario_nl) + ',');
+    lines.push('      scenario_fr: ' + JSON.stringify(task.scenario_fr) + ',');
+    lines.push('      correct_nl:  ' + JSON.stringify(task.correct_nl) + ',');
+    lines.push('      correct_fr:  ' + JSON.stringify(task.correct_fr) + ',');
+    lines.push('    }' + (i < state.tasks.length - 1 ? ',' : ''));
+  });
+  lines.push('  ],');
+  lines.push('');
+
+  /* Trees */
+  lines.push('  /* ── Trees ────────────────────────────────────────────────────────────── */');
+  lines.push('  trees: {');
+  lines.push('    nl: {');
+  lines.push('      id: \'root\', label: ' + JSON.stringify(CONFIG.trees.nl.label || 'HR-dienst') + ',');
+  lines.push('      children: ' + serializeTreeChildren(nlChildren, '      '));
+  lines.push('    },');
+  lines.push('');
+  lines.push('    fr: {');
+  lines.push('      id: \'root\', label: ' + JSON.stringify(CONFIG.trees.fr.label || '') + ',');
+  lines.push('      children: ' + serializeTreeChildren(frChildren, '      '));
+  lines.push('    }');
+  lines.push('  },');
+  lines.push('');
+  lines.push('}; /* END CONFIG */');
+
+  var content = lines.join('\n');
+  var blob    = new Blob([content], { type: 'text/javascript;charset=utf-8;' });
+  var url     = URL.createObjectURL(blob);
+  var a       = document.createElement('a');
+  a.href      = url;
+  a.download  = 'config.js';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  var toast = document.getElementById('export-toast');
+  toast.style.display = 'block';
+  setTimeout(function () { toast.style.display = 'none'; }, 2500);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Tab management
+───────────────────────────────────────────────────────────────────────────── */
+var TAB_ORDER = ['tree', 'tasks', 'instructions'];
+
+function showTab(name) {
+  TAB_ORDER.forEach(function (t) {
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+  });
+  document.querySelectorAll('.tab-btn').forEach(function (btn, i) {
+    btn.classList.toggle('active', TAB_ORDER[i] === name);
+  });
+  /* Always refresh tasks when switching to that tab (keeps leaf list in sync) */
+  if (name === 'tasks') renderTasksTab();
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Init
+───────────────────────────────────────────────────────────────────────────── */
+renderTreeTab();
+renderTasksTab();
+document.getElementById('instr-nl').value = state.instructions_nl;
+document.getElementById('instr-fr').value = state.instructions_fr;
+</script>
+</body>
+</html>

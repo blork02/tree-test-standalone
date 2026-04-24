@@ -205,7 +205,8 @@
             return (
               '<td class="pretest-cell">' +
                 '<label for="' + id + '">' +
-                  '<input type="radio" id="' + id + '" name="pt-' + i + '" value="' + j + '">' +
+                  '<input type="radio" id="' + id + '" name="pt-' + i + '" value="' + j + '"' +
+                  ' onchange="treeApp.checkPretestComplete()">' +
                 '</label>' +
               '</td>'
             );
@@ -225,7 +226,8 @@
               '<tbody>' + tbodyHtml + '</tbody>' +
             '</table>' +
           '</div>' +
-          '<button class="btn-primary pretest-submit" onclick="treeApp.submitPretest()">' +
+          '<button class="btn-primary pretest-submit" id="pretest-submit" disabled' +
+              ' onclick="treeApp.submitPretest()">' +
             esc(t('btnPretestNext')) +
           '</button>' +
         '</div>' +
@@ -459,15 +461,44 @@
 
   /* ── Screen: download ───────────────────────────────────────────────────── */
   function renderDownloadScreen() {
+    var emails   = CONFIG.resultEmails || [];
+    var subject  = encodeURIComponent(t('emailSubject'));
+    var body     = encodeURIComponent(t('emailBody'));
+    var mailtoHref = 'mailto:' + emails.join(',') + '?subject=' + subject + '&body=' + body;
+
+    var emailListHtml = emails.map(function (e) {
+      return '<div class="dl-email">' + esc(e) + '</div>';
+    }).join('');
+
     app.innerHTML =
       '<div class="download-screen">' +
         '<div class="download-card">' +
           '<div class="dl-checkmark" aria-hidden="true">✓</div>' +
           '<h2>' + esc(t('thankyouTitle')) + '</h2>' +
           '<p class="dl-body">' + esc(t('thankyouBody')) + '</p>' +
-          '<button class="btn-download" onclick="treeApp.downloadCSV()">' +
-            esc(t('btnDownload')) +
-          '</button>' +
+          '<div class="dl-notice">' + esc(t('dlNotice')) + '</div>' +
+          '<div class="dl-steps">' +
+            '<div class="dl-step">' +
+              '<div class="dl-step-header">' +
+                '<span class="dl-step-num">1</span>' +
+                '<strong class="dl-step-title">' + esc(t('dlStep1Title')) + '</strong>' +
+              '</div>' +
+              '<button class="btn-download" onclick="treeApp.downloadCSV()">' +
+                esc(t('btnDownload')) +
+              '</button>' +
+            '</div>' +
+            '<div class="dl-step">' +
+              '<div class="dl-step-header">' +
+                '<span class="dl-step-num">2</span>' +
+                '<strong class="dl-step-title">' + esc(t('dlStep2Title')) + '</strong>' +
+              '</div>' +
+              '<div class="dl-email-list">' + emailListHtml + '</div>' +
+              '<a class="btn-email" href="' + esc(mailtoHref) + '">' +
+                esc(t('btnOpenEmail')) +
+              '</a>' +
+              '<p class="dl-attach-reminder">' + esc(t('dlAttachReminder')) + '</p>' +
+            '</div>' +
+          '</div>' +
         '</div>' +
       '</div>';
   }
@@ -566,6 +597,16 @@
 
     goToPretest: function () {
       renderPretestScreen();
+    },
+
+    checkPretestComplete: function () {
+      var total    = (CONFIG.i18n[lang].pretestRows || []).length;
+      var answered = 0;
+      for (var i = 0; i < total; i++) {
+        if (document.querySelector('input[name="pt-' + i + '"]:checked')) answered++;
+      }
+      var btn = document.getElementById('pretest-submit');
+      if (btn) btn.disabled = answered < total;
     },
 
     submitPretest: function () {
