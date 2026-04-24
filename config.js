@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   config.js — edit trees and i18n strings here
+   config.js — edit tasks, trees, and i18n strings here
    ══════════════════════════════════════════════════════════════════════════ */
 
 const CONFIG = {
@@ -7,30 +7,153 @@ const CONFIG = {
   /* ── i18n strings ─────────────────────────────────────────────────────── */
   i18n: {
     fr: {
-      appTitle:        'HR Service Desk – Test de navigation',
-      treeLabel:       'Naviguez dans les catégories',
-      breadcrumbLabel: 'Chemin sélectionné :',
-      breadcrumbEmpty: 'Aucune catégorie sélectionnée',
-      confirmBtn:      'Je soumettrais ma question ici',
-      navLogTitle:     'Parcours de navigation',
-      reminderTitle:   'Avant de passer à la suite dans Lookback',
-      reminderIntro:   'Répondez aux 2 questions suivantes :',
-      reminderQ1:      'Sur une échelle de 1 à 5, à quel point étiez-vous confiant(e) dans votre choix ?',
-      reminderQ2:      'Avez-vous des remarques ou suggestions ?',
+      appTitle:            'HR Service Desk – Test de navigation',
+      treeLabel:           'Naviguez dans les catégories',
+      breadcrumbLabel:     'Chemin sélectionné :',
+      breadcrumbEmpty:     'Aucune catégorie sélectionnée',
+      confirmBtn:          'Je soumettrais ma question ici',
+      participantLabel:    'Votre code participant (optionnel) :',
+      btnNext:             'Suivant',
+      btnStart:            'Commencer le test',
+      instructionsTitle:   'Instructions',
+      instructionsBodyHtml: `
+        <p>Vous allez répondre à <strong>8 scénarios</strong>.
+        Pour chaque scénario, imaginez que vous êtes un(e) employé(e)
+        qui cherche où soumettre une question au service RH.</p>
+        <ol>
+          <li>Lisez attentivement le scénario affiché.</li>
+          <li>Naviguez dans l'arborescence des catégories.</li>
+          <li>Cliquez sur la catégorie où vous soumettriez votre question,
+              puis confirmez avec le bouton ci-dessous.</li>
+        </ol>
+        <p>Il n'y a pas de bonne ou de mauvaise réponse —
+        choisissez simplement là où vous vous attendriez à trouver de l'aide.</p>`,
+      scenarioLabel:       'Votre scénario',
+      progressLabel:       'Scénario %d sur %n',
+      confidenceQ:         'Sur une échelle de 1 à 5, à quel point étiez-vous confiant(e) dans votre choix ?',
+      confidenceLow:       '1 = pas du tout confiant(e)',
+      confidenceHigh:      '5 = très confiant(e)',
+      commentQ:            'Avez-vous des remarques ou suggestions ? (optionnel)',
+      btnNextTask:         'Scénario suivant',
+      btnFinish:           'Terminer les scénarios',
+      postStudyTitle:      'Questionnaire de clôture',
+      easeQ:               'Dans l\'ensemble, comment évalueriez-vous la facilité à trouver les bonnes catégories ?',
+      easeLow:             '1 = très difficile',
+      easeHigh:            '5 = très facile',
+      hardestQ:            'Quelles catégories principales étaient les plus difficiles à trouver ? (plusieurs choix possibles)',
+      missingQ:            'Y a-t-il des catégories manquantes ou dont le nom prête à confusion ?',
+      otherCommentsQ:      'Autres commentaires ou suggestions ?',
+      btnSubmitPostStudy:  'Terminer',
+      thankyouTitle:       'Merci pour votre participation !',
+      thankyouBody:        'Vos résultats sont prêts. Cliquez sur le bouton ci-dessous pour les télécharger et les transmettre à l\'organisateur de l\'étude.',
+      btnDownload:         'Télécharger les résultats (CSV)',
     },
     nl: {
-      appTitle:        'HR-dienst – Navigatietest',
-      treeLabel:       'Navigeer door de categorieën',
-      breadcrumbLabel: 'Geselecteerd pad:',
-      breadcrumbEmpty: 'Geen categorie geselecteerd',
-      confirmBtn:      'Hier zou ik mijn vraag indienen',
-      navLogTitle:     'Navigatieverloop',
-      reminderTitle:   'Voordat u verdergaat in Lookback',
-      reminderIntro:   'Beantwoord de volgende 2 vragen:',
-      reminderQ1:      'Op een schaal van 1 tot 5, hoe zeker was u van uw keuze?',
-      reminderQ2:      'Heeft u opmerkingen of suggesties?',
+      appTitle:            'HR-dienst – Navigatietest',
+      treeLabel:           'Navigeer door de categorieën',
+      breadcrumbLabel:     'Geselecteerd pad:',
+      breadcrumbEmpty:     'Geen categorie geselecteerd',
+      confirmBtn:          'Hier zou ik mijn vraag indienen',
+      participantLabel:    'Uw deelnemerscode (optioneel):',
+      btnNext:             'Volgende',
+      btnStart:            'Start de test',
+      instructionsTitle:   'Instructies',
+      instructionsBodyHtml: `
+        <p>U gaat <strong>8 scenario's</strong> beantwoorden.
+        Stel u bij elk scenario voor dat u een medewerker bent
+        die op zoek is naar waar hij of zij een vraag kan stellen aan de HR-dienst.</p>
+        <ol>
+          <li>Lees het scenario aandachtig.</li>
+          <li>Navigeer door de categorieënboom.</li>
+          <li>Klik op de categorie waar u uw vraag zou indienen
+              en bevestig met de knop hieronder.</li>
+        </ol>
+        <p>Er zijn geen goede of foute antwoorden —
+        kies gewoon waar u de hulp zou verwachten te vinden.</p>`,
+      scenarioLabel:       'Uw scenario',
+      progressLabel:       'Scenario %d van %n',
+      confidenceQ:         'Op een schaal van 1 tot 5, hoe zeker was u van uw keuze?',
+      confidenceLow:       '1 = helemaal niet zeker',
+      confidenceHigh:      '5 = zeer zeker',
+      commentQ:            'Heeft u opmerkingen of suggesties? (optioneel)',
+      btnNextTask:         'Volgend scenario',
+      btnFinish:           'Scenario\'s afronden',
+      postStudyTitle:      'Afsluitende vragenlijst',
+      easeQ:               'Hoe gemakkelijk was het over het algemeen om de juiste categorieën te vinden?',
+      easeLow:             '1 = zeer moeilijk',
+      easeHigh:            '5 = zeer gemakkelijk',
+      hardestQ:            'Welke hoofdcategorieën waren het moeilijkst te vinden? (meerdere keuzes mogelijk)',
+      missingQ:            'Zijn er categorieën die ontbreken of waarvan de naam verwarrend is?',
+      otherCommentsQ:      'Andere opmerkingen of suggesties?',
+      btnSubmitPostStudy:  'Afronden',
+      thankyouTitle:       'Bedankt voor uw deelname!',
+      thankyouBody:        'Uw resultaten zijn klaar. Klik op de knop hieronder om ze te downloaden en door te sturen naar de organisator van het onderzoek.',
+      btnDownload:         'Resultaten downloaden (CSV)',
     }
   },
+
+  /* ── Tasks ────────────────────────────────────────────────────────────────
+     8 scenarios presented in randomised order each session.
+     Fill in scenario_fr and correct_fr before running French sessions.
+     ──────────────────────────────────────────────────────────────────────── */
+  tasks: [
+    {
+      id: 'task1',
+      scenario_nl: 'Gisteren klopt je prikking niet: de registratie toont dat je afwezig was, terwijl je gewoon aan het werk was. Waar ga je dit melden?',
+      scenario_fr: '[FR – scénario 1 à compléter]',
+      correct_nl:  'nl_werktijd_aanwezigheid',
+      correct_fr:  'fr_werktijd_aanwezigheid',
+    },
+    {
+      id: 'task2',
+      scenario_nl: 'Je wil weten hoeveel verlofdagen je nog hebt dit jaar. Waar zoek je die informatie?',
+      scenario_fr: '[FR – scénario 2 à compléter]',
+      correct_nl:  'nl_verlof_quota_info',
+      correct_fr:  'fr_verlof_quota_info',
+    },
+    {
+      id: 'task3',
+      scenario_nl: 'Je hebt je loonfiche van vorige maand nodig voor je belastingaangifte. Waar vraag je die op?',
+      scenario_fr: '[FR – scénario 3 à compléter]',
+      correct_nl:  'nl_loon_loonfiche',
+      correct_fr:  'fr_loon_loonfiche',
+    },
+    {
+      id: 'task4',
+      scenario_nl: 'Je bent ziek thuis en wil weten hoe je een ziektemelding correct indient. Waar vind je die informatie?',
+      scenario_fr: '[FR – scénario 4 à compléter]',
+      correct_nl:  'nl_gezondheid_ziekte_info',
+      correct_fr:  'fr_gezondheid_ziekte_info',
+    },
+    {
+      id: 'task5',
+      scenario_nl: 'Je badge is kwijt en je geraakt het gebouw niet meer in. Waar vraag je een vervangende badge aan?',
+      scenario_fr: '[FR – scénario 5 à compléter]',
+      correct_nl:  'nl_badge_vervanging',
+      correct_fr:  'fr_badge_vervanging',
+    },
+    {
+      id: 'task6',
+      scenario_nl: 'Je wil een opleiding volgen die aangeboden wordt via de organisatie. Waar doe je een aanvraag?',
+      scenario_fr: '[FR – scénario 6 à compléter]',
+      correct_nl:  'nl_loopbaan_opleidingen',
+      correct_fr:  'fr_loopbaan_opleidingen',
+    },
+    {
+      id: 'task7',
+      scenario_nl: 'Je hebt plots geen toegang meer tot een HR-toepassing die je dagelijks gebruikt. Waar meld je dit?',
+      scenario_fr: '[FR – scénario 7 à compléter]',
+      correct_nl:  'nl_hrapps_toegang',
+      correct_fr:  'fr_hrapps_toegang',
+    },
+    {
+      id: 'task8',
+      scenario_nl: 'Je professioneel telefoonnummer is veranderd en je wil dit aanpassen in het systeem. Waar doe je dit?',
+      scenario_fr: '[FR – scénario 8 à compléter]',
+      correct_nl:  'nl_persoonsgegevens_telefoon',
+      correct_fr:  'fr_persoonsgegevens_telefoon',
+    },
+  ],
 
   /* ── Trees ────────────────────────────────────────────────────────────────
      NL labels are complete. FR labels are empty — fill them in before
