@@ -118,7 +118,7 @@
     var paramLang = params.get('lang');
     if (paramLang === 'fr' || paramLang === 'nl') {
       setLang(paramLang);
-      renderParticipantScreen();
+      renderWelcomeScreen();
     } else {
       renderLangSelector();
     }
@@ -127,6 +127,7 @@
   function setLang(l) {
     lang = l;
     document.documentElement.lang = lang;
+    participantId = randomPID();
     pathMap = {};
     buildPathMap(CONFIG.trees[lang].children || [], []);
   }
@@ -142,32 +143,6 @@
           '<button class="btn-lang" onclick="treeApp.selectLang(\'nl\')">Nederlands</button>' +
         '</div>' +
       '</div>';
-  }
-
-  /* ── Screen: participant ID ─────────────────────────────────────────────── */
-  function renderParticipantScreen() {
-    var defaultPid = randomPID();
-    app.innerHTML =
-      '<div class="welcome-screen">' +
-        '<div class="welcome-card">' +
-          '<h1>' + esc(t('appTitle')) + '</h1>' +
-          '<div class="field-group">' +
-            '<label for="pid-input">' + esc(t('participantLabel')) + '</label>' +
-            '<input type="text" id="pid-input" class="text-input"' +
-            ' value="' + esc(defaultPid) + '" />' +
-          '</div>' +
-          '<button class="btn-primary" onclick="treeApp.submitParticipant()">' +
-            esc(t('btnNext')) +
-          '</button>' +
-        '</div>' +
-      '</div>';
-
-    var input = document.getElementById('pid-input');
-    if (input) {
-      input.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') window.treeApp.submitParticipant();
-      });
-    }
   }
 
   /* ── Screen: welcome ────────────────────────────────────────────────────── */
@@ -586,12 +561,6 @@
 
     selectLang: function (selectedLang) {
       setLang(selectedLang);
-      renderParticipantScreen();
-    },
-
-    submitParticipant: function () {
-      var input = document.getElementById('pid-input');
-      participantId = (input ? input.value.trim() : '') || randomPID();
       renderWelcomeScreen();
     },
 
