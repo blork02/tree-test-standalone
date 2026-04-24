@@ -27,7 +27,7 @@ node --check config.js
 Everything is client-side. `config.js` loads first and sets a global `CONFIG`. `app.js` loads second and runs inside an IIFE that reads `CONFIG` at runtime.
 
 **`config.js`** is the only file researchers need to edit. It contains:
-- `CONFIG.i18n` — all UI strings keyed by `fr`/`nl`, including `instructionsBodyHtml` (raw HTML, not escaped)
+- `CONFIG.i18n` — all UI strings keyed by `fr`/`nl`, including `instructionsBodyHtml` (raw HTML, not escaped). Some keys are arrays: `pretestRows`, `pretestCols`, `structureOptions` — access them directly as `CONFIG.i18n[lang].pretestRows`, not via `t()`.
 - `CONFIG.tasks` — array of 8 task objects; each has `id`, `scenario_nl`, `scenario_fr`, `correct_nl`, `correct_fr`
 - `CONFIG.trees` — two full tree structures (`nl` complete, `fr` labels empty)
 
@@ -38,25 +38,28 @@ init()
   └─ ?lang= param set → setLang() → renderParticipantScreen()
   └─ no param        → renderLangSelector()
 
-treeApp.selectLang()     → setLang() → renderParticipantScreen()
-treeApp.submitParticipant() → renderInstructionsScreen()
-treeApp.startSession()   → seededShuffle(tasks) → renderTaskScreen()
+treeApp.selectLang()        → setLang() → renderParticipantScreen()
+treeApp.submitParticipant() → renderWelcomeScreen()
+treeApp.goToPretest()       → renderPretestScreen()
+treeApp.submitPretest()     → save pretestAnswers → renderInstructionsScreen()
+treeApp.startSession()      → seededShuffle(tasks) → renderTaskScreen()
   [per task loop]
-  treeApp.handleConfirm()  → save pendingResult → renderPostTaskScreen()
-  treeApp.submitPostTask() → push to taskResults → renderTaskScreen() or renderPostStudyScreen()
-treeApp.submitPostStudy() → renderDownloadScreen()
-treeApp.downloadCSV()    → generate CSV blob → trigger download
+  treeApp.handleConfirm()   → save pendingResult → renderPostTaskScreen()
+  treeApp.submitPostTask()  → push to taskResults → renderTaskScreen() or renderPostStudyScreen()
+treeApp.submitPostStudy()   → renderDownloadScreen()
+treeApp.downloadCSV()       → generate CSV blob → trigger download
 ```
 
 `pathMap` is a flat lookup built once per language: `nodeId → [{id, label}, …]` from root to that node. It powers breadcrumbs, `pathString()`, and the `final_answer_path` CSV column.
 
-Task randomisation uses a seeded LCG shuffle (`Math.imul`) so the seed can be recorded in the CSV and replayed.
+Task order uses a seeded LCG shuffle (`Math.imul`) so the seed is recorded in the CSV and can replay the order. Structure options in the post-study use an unseeded shuffle (display order only, not analytically meaningful).
 
 **Key state variables** (module-level in the IIFE):
 - `taskOrder` — shuffled index array into `CONFIG.tasks`
 - `currentStep` — index into `taskOrder`
 - `pendingResult` — partial task result built in `handleConfirm`, completed in `submitPostTask`
 - `firstClickNodeId` — set once on first leaf click per task, never overwritten
+- `pretestAnswers` — `{ rowLabel: colLabel }` map saved by `submitPretest`, written as a `pre_test` row in the CSV
 
 ## Editing content
 

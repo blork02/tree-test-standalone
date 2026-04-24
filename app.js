@@ -4,25 +4,26 @@
   var app = document.getElementById('app');
 
   /* ── Session state ──────────────────────────────────────────────────────── */
-  var lang          = null;
-  var participantId = '';
-  var seed          = 0;
-  var taskOrder     = [];   // shuffled indices into CONFIG.tasks
-  var currentStep   = 0;   // position in taskOrder (0-based)
-  var taskResults   = [];
+  var lang             = null;
+  var participantId    = '';
+  var seed             = 0;
+  var taskOrder        = [];   // shuffled indices into CONFIG.tasks
+  var currentStep      = 0;   // position in taskOrder (0-based)
+  var taskResults      = [];
   var postStudyAnswers = null;
+  var pretestAnswers   = null;
 
   /* ── Per-task state ─────────────────────────────────────────────────────── */
-  var selectedNodeId   = null;
-  var firstClickNodeId = null;
-  var navLog           = [];
-  var taskStartTime    = null;
+  var selectedNodeId     = null;
+  var firstClickNodeId   = null;
+  var navLog             = [];
+  var taskStartTime      = null;
   var selectedConfidence = null;
   var selectedEase       = null;
   var pendingResult      = null;
   var pathMap            = {};
 
-  /* ── PRNG: seeded Fisher-Yates shuffle ──────────────────────────────────── */
+  /* ── PRNG: seeded Fisher-Yates (for task order) ─────────────────────────── */
   function seededShuffle(arr, s) {
     var a = arr.slice();
     var state = s >>> 0;
@@ -32,6 +33,16 @@
     }
     for (var i = a.length - 1; i > 0; i--) {
       var j = Math.floor(next() * (i + 1));
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+
+  /* ── Unseeded shuffle (for display-order randomisation only) ────────────── */
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
       var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
     }
     return a;
@@ -72,19 +83,16 @@
     return 'P-' + Math.floor(1000 + Math.random() * 9000);
   }
 
-  function progressPct(done, total) {
-    return (done / total * 100).toFixed(1) + '%';
-  }
-
   function progressHTML(done) {
     var total = CONFIG.tasks.length;
+    var pct   = (done / total * 100).toFixed(1) + '%';
     var label = t('progressLabel')
       .replace('%d', String(done))
       .replace('%n', String(total));
     return (
       '<div class="progress-wrap">' +
         '<div class="progress-bar">' +
-          '<div class="progress-fill" style="width:' + progressPct(done, total) + '"></div>' +
+          '<div class="progress-fill" style="width:' + pct + '"></div>' +
         '</div>' +
         '<div class="progress-label">' + esc(label) + '</div>' +
       '</div>'
@@ -108,7 +116,6 @@
   function init() {
     var params    = new URLSearchParams(window.location.search);
     var paramLang = params.get('lang');
-
     if (paramLang === 'fr' || paramLang === 'nl') {
       setLang(paramLang);
       renderParticipantScreen();
@@ -163,6 +170,65 @@
     }
   }
 
+  /* ── Screen: welcome ────────────────────────────────────────────────────── */
+  function renderWelcomeScreen() {
+    app.innerHTML =
+      '<div class="instructions-screen">' +
+        '<div class="instructions-card">' +
+          '<h2>' + esc(t('welcomeTitle')) + '</h2>' +
+          '<p class="welcome-body">' + esc(t('welcomeBody')) + '</p>' +
+          '<button class="btn-primary" onclick="treeApp.goToPretest()">' +
+            esc(t('btnWelcomeNext')) +
+          '</button>' +
+        '</div>' +
+      '</div>';
+  }
+
+  /* ── Screen: pre-test questionnaire ────────────────────────────────────── */
+  function renderPretestScreen() {
+    var rows = CONFIG.i18n[lang].pretestRows || [];
+    var cols = CONFIG.i18n[lang].pretestCols || [];
+
+    var theadHtml =
+      '<tr><th class="pretest-corner"></th>' +
+      cols.map(function (col) {
+        return '<th class="pretest-col-header">' + esc(col) + '</th>';
+      }).join('') +
+      '</tr>';
+
+    var tbodyHtml = rows.map(function (row, i) {
+      return (
+        '<tr class="pretest-row">' +
+          '<td class="pretest-row-label">' + esc(row) + '</td>' +
+          cols.map(function (col, j) {
+            return (
+              '<td class="pretest-cell">' +
+                '<input type="radio" name="pt-' + i + '" value="' + j + '">' +
+              '</td>'
+            );
+          }).join('') +
+        '</tr>'
+      );
+    }).join('');
+
+    app.innerHTML =
+      '<div class="instructions-screen">' +
+        '<div class="instructions-card pretest-card">' +
+          '<h2>' + esc(t('pretestTitle')) + '</h2>' +
+          '<p class="pretest-grid-intro">' + esc(t('pretestGridIntro')) + '</p>' +
+          '<div class="pretest-table-wrap">' +
+            '<table class="pretest-table">' +
+              '<thead>' + theadHtml + '</thead>' +
+              '<tbody>' + tbodyHtml + '</tbody>' +
+            '</table>' +
+          '</div>' +
+          '<button class="btn-primary pretest-submit" onclick="treeApp.submitPretest()">' +
+            esc(t('btnPretestNext')) +
+          '</button>' +
+        '</div>' +
+      '</div>';
+  }
+
   /* ── Screen: instructions ───────────────────────────────────────────────── */
   function renderInstructionsScreen() {
     app.innerHTML =
@@ -184,11 +250,11 @@
     var scenarioText = task['scenario_' + lang] || task.scenario_nl;
     var tree         = CONFIG.trees[lang];
 
-    selectedNodeId   = null;
-    firstClickNodeId = null;
-    navLog           = [];
+    selectedNodeId     = null;
+    firstClickNodeId   = null;
+    navLog             = [];
     selectedConfidence = null;
-    taskStartTime    = Date.now();
+    taskStartTime      = Date.now();
 
     app.innerHTML =
       '<div class="task-page">' +
@@ -260,7 +326,6 @@
         }
       });
     });
-
     document.querySelectorAll('.tree-leaf').forEach(function (btn) {
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
@@ -274,7 +339,6 @@
     document.querySelectorAll('.tree-leaf.selected').forEach(function (el) {
       el.classList.remove('selected');
     });
-
     if (selectedNodeId === nodeId) {
       selectedNodeId = null;
       updateBreadcrumb(null);
@@ -338,20 +402,31 @@
 
   /* ── Screen: post-study questionnaire ──────────────────────────────────── */
   function renderPostStudyScreen() {
-    var topCategories = CONFIG.trees[lang].children || [];
-    var checkboxes = topCategories.map(function (node) {
-      return (
-        '<label class="checkbox-item">' +
-          '<input type="checkbox" class="hardest-check" value="' + esc(node.id) + '" />' +
-          esc(node.label) +
-        '</label>'
-      );
-    }).join('');
+    // Shuffle structure options; "Anders / Autre" always goes last
+    var structureOpts = shuffle(CONFIG.i18n[lang].structureOptions || []);
+    var structureCheckboxes =
+      structureOpts.map(function (opt) {
+        return (
+          '<label class="checkbox-item">' +
+            '<input type="checkbox" class="structure-check" value="' + esc(opt) + '" />' +
+            esc(opt) +
+          '</label>'
+        );
+      }).join('') +
+      '<label class="checkbox-item">' +
+        '<input type="checkbox" id="structure-other-cb" class="structure-check"' +
+        ' onchange="treeApp.toggleStructureOther(this)" />' +
+        esc(t('structureOther')) +
+      '</label>' +
+      '<div id="structure-other-reveal" class="structure-other-reveal" style="display:none">' +
+        '<input type="text" id="structure-other-input" class="text-input" placeholder="...">' +
+      '</div>';
 
     app.innerHTML =
       '<div class="post-study-screen">' +
         '<div class="post-study-card">' +
           '<h2>' + esc(t('postStudyTitle')) + '</h2>' +
+          '<p class="post-study-intro">' + esc(t('postStudyExpIntro')) + '</p>' +
 
           '<div class="question-group">' +
             '<p class="q-label">' + esc(t('easeQ')) + '</p>' +
@@ -363,17 +438,12 @@
           '</div>' +
 
           '<div class="question-group">' +
-            '<p class="q-label">' + esc(t('hardestQ')) + '</p>' +
-            '<div class="checkbox-group">' + checkboxes + '</div>' +
+            '<p class="q-label">' + esc(t('structureQ')) + '</p>' +
+            '<div class="checkbox-group">' + structureCheckboxes + '</div>' +
           '</div>' +
 
           '<div class="question-group">' +
-            '<label class="q-label" for="ps-missing">' + esc(t('missingQ')) + '</label>' +
-            '<textarea id="ps-missing" class="text-area" rows="3"></textarea>' +
-          '</div>' +
-
-          '<div class="question-group">' +
-            '<label class="q-label" for="ps-other">' + esc(t('otherCommentsQ')) + '</label>' +
+            '<label class="q-label" for="ps-other">' + esc(t('postStudyFinalCommentQ')) + '</label>' +
             '<textarea id="ps-other" class="text-area" rows="3"></textarea>' +
           '</div>' +
 
@@ -409,13 +479,35 @@
   }
 
   function generateCSV() {
+    // Columns 0–14: shared base
+    // Columns 15–19: pre-test (one per row of the questionnaire)
+    // Columns 20–23: post-study
     var cols = [
       'participant_id', 'language', 'task_id', 'task_order', 'scenario_text',
       'path_taken', 'first_click', 'first_click_correct', 'final_answer',
       'final_answer_path', 'correct', 'time_seconds', 'confidence', 'comment',
-      'randomisation_seed'
+      'randomisation_seed',
+      'pretest_computer', 'pretest_smartphone', 'pretest_intranet_webe',
+      'pretest_hr_contact', 'pretest_hr_servicedesk',
+      'ease', 'structure_words', 'structure_other', 'other_comments'
     ];
     var rows = [cols.join(',')];
+
+    var empty5 = ['', '', '', '', ''];
+    var empty9 = ['', '', '', '', '', '', '', '', ''];
+
+    if (pretestAnswers) {
+      var ptRow = [
+        participantId, lang, 'pre_test', '', '', '', '', '', '', '', '', '', '', '', seed,
+        pretestAnswers[0] || '',
+        pretestAnswers[1] || '',
+        pretestAnswers[2] || '',
+        pretestAnswers[3] || '',
+        pretestAnswers[4] || '',
+        '', '', '', ''  // ease, structure_words, structure_other, other_comments
+      ];
+      rows.push(ptRow.map(csvCell).join(','));
+    }
 
     taskResults.forEach(function (r) {
       var task      = CONFIG.tasks[r.taskIdx];
@@ -436,17 +528,19 @@
         r.confidence != null ? r.confidence : '',
         r.comment,
         seed
-      ];
+      ].concat(empty9);
       rows.push(row.map(csvCell).join(','));
     });
 
     if (postStudyAnswers) {
       var psRow = [
-        participantId, lang, 'post_study', '', '', '', '', '', '', '', '',
+        participantId, lang, 'post_study', '', '', '', '', '', '', '', '', '', '', '', seed
+      ].concat(empty5).concat([
         postStudyAnswers.ease != null ? postStudyAnswers.ease : '',
-        JSON.stringify(postStudyAnswers),
-        seed
-      ];
+        (postStudyAnswers.structureWords || []).join(' | '),
+        postStudyAnswers.structureOther  || '',
+        postStudyAnswers.otherComments   || ''
+      ]);
       rows.push(psRow.map(csvCell).join(','));
     }
 
@@ -464,6 +558,20 @@
     submitParticipant: function () {
       var input = document.getElementById('pid-input');
       participantId = (input ? input.value.trim() : '') || randomPID();
+      renderWelcomeScreen();
+    },
+
+    goToPretest: function () {
+      renderPretestScreen();
+    },
+
+    submitPretest: function () {
+      var cols = CONFIG.i18n[lang].pretestCols || [];
+      pretestAnswers = {};
+      for (var i = 0; i < 5; i++) {
+        var checked = document.querySelector('input[name="pt-' + i + '"]:checked');
+        pretestAnswers[i] = checked ? (cols[parseInt(checked.value)] || '') : '';
+      }
       renderInstructionsScreen();
     },
 
@@ -471,29 +579,29 @@
       seed      = Date.now() & 0x7fffffff;
       var idxs  = CONFIG.tasks.map(function (_, i) { return i; });
       taskOrder = seededShuffle(idxs, seed);
-      currentStep  = 0;
-      taskResults  = [];
+      currentStep   = 0;
+      taskResults   = [];
       pendingResult = null;
       renderTaskScreen();
     },
 
     handleConfirm: function () {
       if (!selectedNodeId) return;
-      var elapsed = Math.round((Date.now() - taskStartTime) / 1000);
+      var elapsed   = Math.round((Date.now() - taskStartTime) / 1000);
       var pathTaken = navLog.map(function (e) {
         return (e.type === 'open' ? '▸ ' : '○ ') + e.pathStr;
       }).join(' | ');
 
       pendingResult = {
-        taskIdx:       taskOrder[currentStep],
-        taskOrder:     currentStep + 1,
-        firstClick:    firstClickNodeId || '',
-        finalAnswer:   selectedNodeId,
+        taskIdx:         taskOrder[currentStep],
+        taskOrder:       currentStep + 1,
+        firstClick:      firstClickNodeId || '',
+        finalAnswer:     selectedNodeId,
         finalAnswerPath: pathString(selectedNodeId),
-        pathTaken:     pathTaken,
-        timeSeconds:   elapsed,
-        confidence:    null,
-        comment:       ''
+        pathTaken:       pathTaken,
+        timeSeconds:     elapsed,
+        confidence:      null,
+        comment:         ''
       };
       renderPostTaskScreen();
     },
@@ -512,7 +620,7 @@
       pendingResult.confidence = selectedConfidence;
       pendingResult.comment    = comment ? comment.value.trim() : '';
       taskResults.push(pendingResult);
-      pendingResult = null;
+      pendingResult      = null;
       selectedConfidence = null;
       currentStep++;
 
@@ -530,18 +638,28 @@
       });
     },
 
+    toggleStructureOther: function (cb) {
+      var reveal = document.getElementById('structure-other-reveal');
+      if (reveal) reveal.style.display = cb.checked ? 'block' : 'none';
+    },
+
     submitPostStudy: function () {
-      var hardest = [];
-      document.querySelectorAll('.hardest-check:checked').forEach(function (cb) {
-        hardest.push(cb.value);
+      var other = document.getElementById('ps-other');
+
+      var structureWords = [];
+      document.querySelectorAll('.structure-check:checked').forEach(function (cb) {
+        if (cb.id !== 'structure-other-cb') structureWords.push(cb.value);
       });
-      var missing = document.getElementById('ps-missing');
-      var other   = document.getElementById('ps-other');
+      var otherCb    = document.getElementById('structure-other-cb');
+      var otherInput = document.getElementById('structure-other-input');
+      var structureOtherText = (otherCb && otherCb.checked && otherInput)
+        ? otherInput.value.trim() : '';
+
       postStudyAnswers = {
-        ease:                selectedEase,
-        hardestCategories:   hardest,
-        missingOrPoorlyNamed: missing ? missing.value.trim() : '',
-        otherComments:       other   ? other.value.trim()   : ''
+        ease:          selectedEase,
+        structureWords: structureWords,
+        structureOther: structureOtherText,
+        otherComments:  other ? other.value.trim() : ''
       };
       renderDownloadScreen();
     },

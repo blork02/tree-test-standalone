@@ -629,3 +629,97 @@ li.has-children.open > .tree-children {
   font-size: 0.9375rem;
   line-height: 1.6;
 }
+
+/* ── Welcome screen body text ────────────────────────────────────────────── */
+.welcome-body {
+  font-size: 0.9375rem;
+  color: #374151;
+  line-height: 1.6;
+  margin-bottom: 1.75rem;
+}
+
+/* ── Post-study intro text ───────────────────────────────────────────────── */
+.post-study-intro {
+  font-size: 0.9375rem;
+  color: #6b7280;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+/* ── Structure-other reveal ──────────────────────────────────────────────── */
+.structure-other-reveal {
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+/* ── Pre-test questionnaire ──────────────────────────────────────────────── */
+.pretest-card {
+  max-width: 780px;
+}
+
+.pretest-grid-intro {
+  font-size: 0.9375rem;
+  color: #374151;
+  line-height: 1.5;
+  margin-bottom: 1.25rem;
+}
+
+.pretest-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+.pretest-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.pretest-corner {
+  min-width: 200px;
+}
+
+.pretest-col-header {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-align: center;
+  padding: 0.625rem 0.5rem;
+  vertical-align: bottom;
+  min-width: 84px;
+  line-height: 1.3;
+  border-bottom: 1.5px solid #e5e7eb;
+}
+
+.pretest-row-label {
+  font-size: 0.9rem;
+  color: #374151;
+  padding: 0.75rem 0.875rem;
+  line-height: 1.4;
+  border-right: 1px solid #f3f4f6;
+}
+
+.pretest-cell {
+  text-align: center;
+  padding: 0.625rem 0.25rem;
+  vertical-align: middle;
+}
+
+.pretest-cell input[type="radio"] {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: #1d4ed8;
+  cursor: pointer;
+}
+
+.pretest-row {
+  border-top: 1px solid #f3f4f6;
+}
+
+.pretest-row:nth-child(even) {
+  background: #f9fafb;
+}
+
+.pretest-submit {
+  margin-top: 1.5rem;
+}
