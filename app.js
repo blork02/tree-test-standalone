@@ -301,7 +301,7 @@
           var expanding = !li.classList.contains('open');
           li.classList.toggle('open');
           if (expanding) {
-            navLog.push({ type: 'open', pathStr: pathString(btn.dataset.id) });
+            navLog.push({ type: 'open', nodeId: btn.dataset.id });
           }
         }
       });
@@ -330,7 +330,7 @@
       if (el) el.classList.add('selected');
       updateBreadcrumb(nodeId);
       document.getElementById('confirm-btn').disabled = false;
-      navLog.push({ type: 'select', nodeId: nodeId, pathStr: pathString(nodeId) });
+      navLog.push({ type: 'select', nodeId: nodeId });
     }
   }
 
@@ -488,32 +488,38 @@
   }
 
   function generateCSV() {
-    // Columns 0–14: shared base
-    // Columns 15–19: pre-test (one per row of the questionnaire)
-    // Columns 20–23: post-study
+    // Columns 0–17:  task rows
+    // Columns 18–22: pre-test answers (one per questionnaire row)
+    // Columns 23–26: post-study answers
     var cols = [
       'participant_id', 'language', 'task_id', 'task_order', 'scenario_text',
-      'path_taken', 'first_click', 'first_click_correct', 'final_answer',
-      'final_answer_path', 'correct', 'time_seconds', 'confidence', 'comment',
-      'randomisation_seed',
+      'path_events', 'path_labels',
+      'first_click', 'first_click_correct', 'first_opened',
+      'final_answer', 'final_answer_path', 'n_backtrack',
+      'correct', 'time_seconds', 'confidence', 'comment', 'randomisation_seed',
       'pretest_computer', 'pretest_smartphone', 'pretest_intranet_webe',
       'pretest_hr_contact', 'pretest_hr_servicedesk',
       'ease', 'structure_words', 'structure_other', 'other_comments'
     ];
     var rows = [cols.join(',')];
 
+    // 5 empty cells for pretest cols (used in task + post_study rows)
     var empty5 = ['', '', '', '', ''];
+    // 9 empty cells for pretest + post-study cols (used in task rows)
     var empty9 = ['', '', '', '', '', '', '', '', ''];
 
     if (pretestAnswers) {
       var ptRow = [
-        participantId, lang, 'pre_test', '', '', '', '', '', '', '', '', '', '', '', seed,
+        participantId, lang, 'pre_test', '', '',  // 0–4
+        '', '', '', '', '',                        // path_events, path_labels, first_click, first_click_correct, first_opened
+        '', '', '',                                // final_answer, final_answer_path, n_backtrack
+        '', '', '', '', seed,                      // correct, time_seconds, confidence, comment, randomisation_seed
         pretestAnswers[0] || '',
         pretestAnswers[1] || '',
         pretestAnswers[2] || '',
         pretestAnswers[3] || '',
         pretestAnswers[4] || '',
-        '', '', '', ''  // ease, structure_words, structure_other, other_comments
+        '', '', '', ''
       ];
       rows.push(ptRow.map(csvCell).join(','));
     }
@@ -527,11 +533,14 @@
         task.id,
         r.taskOrder,
         task['scenario_' + lang],
-        r.pathTaken,
+        r.pathEvents,
+        r.pathLabels,
         r.firstClick,
         r.firstClick !== '' ? String(r.firstClick === correctId) : '',
+        r.firstOpened,
         r.finalAnswer,
         r.finalAnswerPath,
+        r.nBacktrack,
         String(r.finalAnswer === correctId),
         r.timeSeconds,
         r.confidence != null ? r.confidence : '',
@@ -543,7 +552,10 @@
 
     if (postStudyAnswers) {
       var psRow = [
-        participantId, lang, 'post_study', '', '', '', '', '', '', '', '', '', '', '', seed
+        participantId, lang, 'post_study', '', '',  // 0–4
+        '', '', '', '', '',                          // path_events, path_labels, first_click, first_click_correct, first_opened
+        '', '', '',                                  // final_answer, final_answer_path, n_backtrack
+        '', '', '', '', seed                         // correct, time_seconds, confidence, comment, randomisation_seed
       ].concat(empty5).concat([
         postStudyAnswers.ease != null ? postStudyAnswers.ease : '',
         (postStudyAnswers.structureWords || []).join(' | '),
@@ -601,17 +613,29 @@
     handleConfirm: function () {
       if (!selectedNodeId) return;
       var elapsed   = Math.round((Date.now() - taskStartTime) / 1000);
-      var pathTaken = navLog.map(function (e) {
-        return (e.type === 'open' ? '▸ ' : '○ ') + e.pathStr;
+      var pathEvents = navLog.map(function (e) {
+        return (e.type === 'open' ? 'OPEN:' : 'SELECT:') + e.nodeId;
       }).join(' | ');
+      var pathLabels = navLog.map(function (e) {
+        return (e.type === 'open' ? 'OPEN:' : 'SELECT:') + pathString(e.nodeId).replace(/ › /g, ' > ');
+      }).join(' | ');
+      var firstOpenedEvt = null;
+      for (var fi = 0; fi < navLog.length; fi++) {
+        if (navLog[fi].type === 'open') { firstOpenedEvt = navLog[fi]; break; }
+      }
+      var firstOpened = firstOpenedEvt ? pathString(firstOpenedEvt.nodeId).split(' › ')[0] : '';
+      var nBacktrack  = Math.max(0, navLog.filter(function (e) { return e.type === 'select'; }).length - 1);
 
       pendingResult = {
         taskIdx:         taskOrder[currentStep],
         taskOrder:       currentStep + 1,
         firstClick:      firstClickNodeId || '',
         finalAnswer:     selectedNodeId,
-        finalAnswerPath: pathString(selectedNodeId),
-        pathTaken:       pathTaken,
+        finalAnswerPath: pathString(selectedNodeId).replace(/ › /g, ' > '),
+        pathEvents:      pathEvents,
+        pathLabels:      pathLabels,
+        firstOpened:     firstOpened,
+        nBacktrack:      nBacktrack,
         timeSeconds:     elapsed,
         confidence:      null,
         comment:         ''
