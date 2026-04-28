@@ -566,7 +566,7 @@ function renderNode(node, totalTask, depth) {
     return '<div class="pnleaf">' + inner + badge + '</div>';
   }
 
-  var autoOpen = depth <= 1 ? ' open' : '';
+  var autoOpen = '';
   return (
     '<details class="pn"' + autoOpen + '>' +
       '<summary>' + inner + '</summary>' +
@@ -574,6 +574,86 @@ function renderNode(node, totalTask, depth) {
         children.map(function (c) { return renderNode(c, totalTask, depth + 1); }).join('') +
       '</div>' +
     '</details>'
+  );
+}
+
+/* ── First-click pie chart ────────────────────────────────────────────────── */
+function renderFirstClickPie(rows, correctInfo) {
+  /* Build frequency map: tier1Label → { label, count, isCorrect } */
+  var map = {};
+  rows.forEach(function (r) {
+    var fc = r.first_opened;
+    if (!fc) return;
+    if (!map[fc]) {
+      var lang = r.language || '?';
+      var ci   = correctInfo && correctInfo[lang];
+      map[fc] = { label: fc, count: 0, isCorrect: !!(ci && ci.tier1Label === fc) };
+    }
+    map[fc].count++;
+  });
+
+  var slices = Object.values(map).sort(function (a, b) { return b.count - a.count; });
+  var total  = slices.reduce(function (s, sl) { return s + sl.count; }, 0);
+  if (!total) return '';
+
+  /* Assign colors: correct → green, wrong nodes → distinct reds */
+  var wrongReds = ['#dc2626', '#b91c1c', '#ef4444', '#f87171', '#991b1b', '#fca5a5'];
+  var wrongIdx  = 0;
+  slices.forEach(function (sl) {
+    sl.color = sl.isCorrect ? '#16a34a' : wrongReds[wrongIdx++ % wrongReds.length];
+  });
+
+  /* SVG pie */
+  var R = 46, cx = 50, cy = 50;
+  var angle = -Math.PI / 2;
+  var paths = [];
+
+  slices.forEach(function (sl) {
+    var portion  = sl.count / total;
+    var endAngle = angle + portion * 2 * Math.PI;
+
+    if (portion >= 0.9999) {
+      paths.push('<circle cx="' + cx + '" cy="' + cy + '" r="' + R + '" fill="' + sl.color + '"/>');
+    } else {
+      var x1 = (cx + R * Math.cos(angle)).toFixed(2);
+      var y1 = (cy + R * Math.sin(angle)).toFixed(2);
+      var x2 = (cx + R * Math.cos(endAngle)).toFixed(2);
+      var y2 = (cy + R * Math.sin(endAngle)).toFixed(2);
+      var large = portion > 0.5 ? 1 : 0;
+      var d = 'M' + cx + ',' + cy +
+              ' L' + x1 + ',' + y1 +
+              ' A' + R + ',' + R + ' 0 ' + large + ',1 ' + x2 + ',' + y2 + ' Z';
+      paths.push('<path d="' + d + '" fill="' + sl.color + '" stroke="white" stroke-width="1.5"/>');
+    }
+    angle = endAngle;
+  });
+
+  var svgHtml = '<svg width="100" height="100" style="flex-shrink:0">' + paths.join('') + '</svg>';
+
+  /* Legend */
+  var legendHtml = slices.map(function (sl) {
+    var short = sl.label.length > 30 ? sl.label.slice(0, 29) + '…' : sl.label;
+    return (
+      '<div style="display:flex;align-items:center;gap:0.4rem;font-size:0.75rem;line-height:1.4">' +
+        '<div style="width:10px;height:10px;border-radius:2px;flex-shrink:0;background:' + sl.color + '"></div>' +
+        '<span style="flex:1;min-width:0;color:#374151" title="' + esc(sl.label) + '">' + esc(short) + '</span>' +
+        '<span style="color:#9ca3af;white-space:nowrap;margin-left:0.25rem">' +
+          sl.count + ' (' + pct(sl.count, total) + ')' +
+        '</span>' +
+      '</div>'
+    );
+  }).join('');
+
+  return (
+    '<div style="padding-top:0.875rem;border-top:1px solid #f3f4f6;margin-top:0.875rem">' +
+      '<div class="tree-hdr" style="margin-bottom:0.5rem">First opened category (first click)</div>' +
+      '<div style="display:flex;align-items:center;gap:1.25rem">' +
+        svgHtml +
+        '<div style="display:flex;flex-direction:column;gap:0.35rem;min-width:0">' +
+          legendHtml +
+        '</div>' +
+      '</div>' +
+    '</div>'
   );
 }
 
@@ -672,7 +752,8 @@ function renderTask(taskId, rows) {
           '<span>⏱ Median time: <strong>' + medianTime + '</strong></span>' +
           '<span>💬 Mean confidence: <strong>' + meanConf + '</strong></span>' +
         '</div>' +
-        '<div class="tree-hdr">Navigation path explorer</div>' +
+        renderFirstClickPie(rows, correctInfo) +
+        '<div class="tree-hdr" style="margin-top:1rem">Navigation path explorer</div>' +
         '<div class="path-tree">' +
           (treeHtml || '<div class="no-data">No path data available.</div>') +
         '</div>' +
@@ -693,12 +774,17 @@ function processCSV(text) {
     return;
   }
 
-  /* Group by task (preserve first-seen order) */
+  /* Group by task, then sort by numeric suffix (task1, task2, …) */
   var taskMap = {}, taskOrder = [];
   rows.forEach(function (r) {
     var tid = r.task_id;
     if (!taskMap[tid]) { taskMap[tid] = []; taskOrder.push(tid); }
     taskMap[tid].push(r);
+  });
+  taskOrder.sort(function (a, b) {
+    var na = parseInt(a.replace(/\D/g, ''), 10) || 0;
+    var nb = parseInt(b.replace(/\D/g, ''), 10) || 0;
+    return na - nb;
   });
 
   /* Stats */

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A standalone, zero-dependency tree test for UX research. Five files, no build step. Open `index.html` in a browser to run it; open `admin.html` to visually edit the content.
+A standalone, zero-dependency tree test for UX research. No build step. Open `index.html` in a browser to run it; open `admin.html` to visually edit the content.
 
 | File | Purpose |
 |---|---|
@@ -13,6 +13,8 @@ A standalone, zero-dependency tree test for UX research. Five files, no build st
 | `config.js` | All editable content (tree, tasks, i18n strings, result emails) |
 | `app.js` | Session state machine; reads `CONFIG` at runtime |
 | `styles.css` | All styles for `index.html`; `admin.html` has its own inline styles |
+| `path-analysis.html` | Standalone analysis tool — upload a merged CSV to visualize navigation paths per task (Google Analytics-style path explorer + first-click pie chart) |
+| `generate-test-data.html` | Fake participant generator — produces a synthetic CSV in the same format as `app.js` exports, for testing `path-analysis.html` without running a real study |
 
 ## Development
 
@@ -71,6 +73,20 @@ Task order uses a seeded LCG shuffle (`Math.imul`) so the seed is recorded in th
 - `pendingResult` — partial task result built in `handleConfirm`, completed in `submitPostTask`
 - `firstClickNodeId` — set once on first leaf click per task, never overwritten
 - `pretestAnswers` — `{ rowLabel: colLabel }` map saved by `submitPretest`, written as a `pre_test` row in the CSV
+
+## Analysis tools
+
+**`path-analysis.html`** — upload a merged multi-participant CSV (drag-and-drop or file picker). Key internals:
+- `parseCSV(text)` — strips UTF-8 BOM, handles CRLF and quoted fields
+- `parseEvents(evtStr, labStr)` — parses `OPEN:id | SELECT:id` tokens into `{type, nodeId, label, fullPath}` objects
+- `getCorrectInfo(taskRows)` — infers the correct answer (tier-1 label + node ID + full path) from rows where `correct === 'true'`, grouped by language
+- `classify(row, correctInfo)` — returns `'direct' | 'indirect' | 'close' | 'wrong'` based on path and outcome
+- `buildTrie(participants)` — builds a prefix trie over each participant's OPEN event sequence for the flow explorer
+- `renderNode(node, totalTask, depth)` — renders `<details>/<summary>` tree nodes; all collapsed by default (`autoOpen = ''`)
+- `renderFirstClickPie(rows)` — SVG pie (100×100); correct slice = `#16a34a` green, wrong slices cycle through shaded reds; handles the single-slice case with a `<circle>` fallback
+- Task sections sorted numerically by the integer suffix of `task_id` (task1, task2, …)
+
+**`generate-test-data.html`** — loads `config.js` via `<script src="config.js">` to access the real tree. Uses the same LCG PRNG as `app.js` (`Math.imul(1664525, state) + 1013904223`). Simulates 5 behavior archetypes: `direct`, `indirect_explore` (opens wrong branch, no select), `indirect_select` (wrong leaf, then backtracks to correct), `close` (correct tier-1, wrong leaf), `wrong` (different tier-1 branch entirely). Outputs the same 27-column CSV format as `app.js`.
 
 ## CSV output
 
