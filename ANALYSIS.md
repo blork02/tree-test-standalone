@@ -48,14 +48,16 @@ BACKTRACK rate: X% of participants changed selection at least once (n_backtrack 
 
 To reconstruct the path flow, parse `path_events` by splitting on ` | `. Each token is `TYPE:node_id`. Group participants by their sequence of OPEN events (the exploration path) before their final SELECT.
 
-### 3. First-click analysis — per task
+### 3. First-answer-attempt analysis — per task
 
-For each task, a frequency table of `first_click` values:
+> **Distinction:** `first_opened` (used in §2) = the Tier-1 *category* a participant navigated into first — the true "first click" metric in tree testing. `first_click` (used here) = the *leaf node* a participant selected first as their answer, which may differ from their final confirmed answer if they backtracked.
 
-| first_click node ID | label (from final_answer_path context) | N | % | correct? |
+For each task, a frequency table of `first_click` values (first leaf selected, not necessarily confirmed):
+
+| first_click node ID | readable label | N | % | correct? |
 |---|---|---|---|---|
 
-Mark the correct first_click (matches `correct_nl` / `correct_fr` in config) with ✓.
+Derive the readable label from `final_answer_path` context or the tree config. Mark the correct answer (matches `correct_nl` / `correct_fr` in config) with ✓.
 
 ### 4. Post-study analysis
 

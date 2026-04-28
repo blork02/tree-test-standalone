@@ -2,6 +2,17 @@
 
 A self-contained, client-side tree test for evaluating the navigation structure of an HR service desk portal. No backend, no external dependencies — open `index.html` in a browser and go.
 
+## Live URLs (GitHub Pages)
+
+| Purpose | URL |
+|---|---|
+| Participant test — NL | https://blork02.github.io/tree-test-standalone/?lang=nl |
+| Participant test — FR | https://blork02.github.io/tree-test-standalone/?lang=fr |
+| Admin / content editor | https://blork02.github.io/tree-test-standalone/admin.html |
+| CSV merger | https://blork02.github.io/tree-test-standalone/merge-csv.html |
+| Path analysis | https://blork02.github.io/tree-test-standalone/path-analysis.html |
+| Test data generator | https://blork02.github.io/tree-test-standalone/generate-test-data.html |
+
 ## What it does
 
 Participants complete a full session in one sitting:
@@ -20,6 +31,19 @@ Participants complete a full session in one sitting:
 
 All data stays in the browser. Nothing is sent to a server.
 
+## Files
+
+| File | Purpose |
+|---|---|
+| `index.html` | Participant-facing test |
+| `app.js` | Session state machine |
+| `config.js` | All editable content (tree, tasks, i18n strings, result emails) |
+| `styles.css` | Styles for `index.html` |
+| `admin.html` | Visual config editor — edit tree, tasks, instructions, export new `config.js` |
+| `merge-csv.html` | Drag-and-drop CSV merger — combine individual participant files into one |
+| `path-analysis.html` | Path explorer — upload merged CSV to visualise navigation flows per task |
+| `generate-test-data.html` | Fake participant generator for testing `path-analysis.html` |
+
 ## Running locally
 
 Open `index.html` directly in any modern browser (Chrome, Firefox, Edge, Safari). No build step needed.
@@ -28,6 +52,12 @@ To pre-select a language and skip the language selector, append `?lang=nl` or `?
 
 ```
 file:///path/to/index.html?lang=nl
+```
+
+Or serve locally:
+
+```bash
+python3 -m http.server 8080
 ```
 
 ## Customising `config.js`
@@ -65,45 +95,46 @@ All UI text is in `CONFIG.i18n.fr` and `CONFIG.i18n.nl`. The `instructionsBodyHt
 
 ## CSV output format
 
-One row per task, plus one summary row for the post-study questionnaire. Columns:
+Each participant produces one CSV. Rows: one per task, plus a `pre_test` row and a `post_study` row.
+
+### Task rows (`task_id` = task1, task2, …)
 
 | Column | Description |
 |---|---|
 | `participant_id` | Entered or auto-generated ID |
 | `language` | `nl` or `fr` |
 | `task_id` | Task identifier from `config.js` |
-| `task_order` | Position in this participant's randomised sequence (1–8) |
+| `task_order` | Position in this participant's randomised sequence |
 | `scenario_text` | The scenario shown to the participant |
-| `path_taken` | Full navigation log (`▸ opens` and `○ selections`), pipe-separated |
-| `first_click` | Node ID of the first leaf the participant clicked |
-| `first_click_correct` | `true`/`false` — whether the first click matched `correct_xx` |
+| `path_events` | Navigation log as `OPEN:node_id \| SELECT:node_id \| …` (machine-parseable) |
+| `path_labels` | Same log with human-readable labels, `>` separated |
+| `first_click` | Node ID of the first leaf the participant clicked (first answer attempt) |
+| `first_click_correct` | `true`/`false` — whether the first leaf click matched the correct answer |
+| `first_opened` | Label of the Tier-1 category the participant opened first (the tree-test "first click" metric) |
 | `final_answer` | Node ID of the confirmed selection |
 | `final_answer_path` | Human-readable path of the confirmed selection |
-| `correct` | `true`/`false` — whether the final answer matched `correct_xx` |
+| `n_backtrack` | How many times they changed their leaf selection before confirming (0 = went straight) |
+| `correct` | `true`/`false` — whether the final answer matched the correct answer |
 | `time_seconds` | Seconds from task display to confirm click |
-| `confidence` | Confidence rating 1–5 |
+| `confidence` | Post-task confidence rating 1–5 |
 | `comment` | Participant's free-text comment for this task |
 | `randomisation_seed` | Integer seed used to generate this session's task order |
 
-The post-study row has `task_id = "post_study"`. Its `confidence` column holds the overall ease rating (1–5) and its `comment` column holds a JSON object:
+### Pre-test row (`task_id` = `pre_test`)
 
-```json
-{
-  "ease": 4,
-  "hardestCategories": ["nl_loopbaan", "nl_gezondheid"],
-  "missingOrPoorlyNamed": "...",
-  "otherComments": "..."
-}
-```
+The columns `pretest_computer`, `pretest_smartphone`, `pretest_intranet_webe`, `pretest_hr_contact`, `pretest_hr_servicedesk` contain the frequency label the participant selected for each question. All other task columns are empty.
+
+### Post-study row (`task_id` = `post_study`)
+
+| Column | Description |
+|---|---|
+| `ease` | Overall ease rating 1–5 |
+| `structure_words` | Pipe-separated list of "hardest category" label selections |
+| `structure_other` | Free-text "other" for hardest category |
+| `other_comments` | Open-ended post-study comment |
+
+All task-level columns are empty in this row.
 
 ## Deployment
 
-Copy the four files (`index.html`, `app.js`, `config.js`, `styles.css`) to any static host — GitHub Pages, Netlify, an intranet share, etc. No server-side processing is required.
-
-To generate a shareable link for a specific language:
-
-```
-https://your-host/index.html?lang=nl
-```
-
-Participants download their own CSV at the end of the session and share it with the study coordinator by email or file upload.
+Copy all files to any static host — GitHub Pages, Netlify, an intranet share, etc. No server-side processing is required. Participants download their own CSV at the end of the session and share it with the study coordinator by email or file upload.

@@ -15,6 +15,8 @@ A standalone, zero-dependency tree test for UX research. No build step. Open `in
 | `styles.css` | All styles for `index.html`; `admin.html` has its own inline styles |
 | `path-analysis.html` | Standalone analysis tool — upload a merged CSV to visualize navigation paths per task (Google Analytics-style path explorer + first-click pie chart) |
 | `generate-test-data.html` | Fake participant generator — produces a synthetic CSV in the same format as `app.js` exports, for testing `path-analysis.html` without running a real study |
+| `merge-csv.html` | Drag-and-drop tool to merge individual participant CSVs into one file for `path-analysis.html` |
+| `RESEARCHER-GUIDE.md` | Step-by-step workflow guide for the researcher (session setup → data collection → analysis) |
 
 ## Development
 

@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tree Test — CSV Merger</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f3f4f6;
+      color: #1f2937;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .app-header {
+      background: #1e3a5f;
+      color: white;
+      padding: 0.875rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .app-header h1 { font-size: 0.9375rem; font-weight: 700; }
+    .app-header p  { font-size: 0.8125rem; opacity: 0.65; margin-top: 1px; }
+
+    #upload-area { max-width: 640px; margin: 3.5rem auto; padding: 0 1.5rem; }
+
+    .drop-zone {
+      border: 2px dashed #d1d5db;
+      border-radius: 12px;
+      padding: 3rem 2rem;
+      text-align: center;
+      background: white;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+    }
+    .drop-zone.drag-over { border-color: #1d4ed8; background: #eff6ff; }
+    .dz-icon { font-size: 2.25rem; margin-bottom: 0.75rem; }
+    .drop-zone h2 { font-size: 1.0625rem; margin-bottom: 0.375rem; }
+    .drop-zone p  { color: #6b7280; font-size: 0.8125rem; margin-bottom: 1.25rem; line-height: 1.6; }
+    .btn-upload {
+      padding: 0.5rem 1.25rem;
+      background: #1d4ed8;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .btn-upload:hover { background: #1e40af; }
+    #file-input { display: none; }
+
+    #results-area { max-width: 900px; margin: 2rem auto; padding: 0 1.5rem 3rem; display: none; }
+
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .results-title { font-weight: 700; font-size: 1rem; }
+    .results-meta  { color: #6b7280; font-size: 0.8125rem; }
+
+    .btn-group { display: flex; gap: 0.5rem; }
+
+    .btn-secondary {
+      padding: 0.5rem 1.1rem;
+      background: white;
+      color: #374151;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .btn-secondary:hover { background: #f9fafb; }
+
+    .btn-primary {
+      padding: 0.5rem 1.25rem;
+      background: #16a34a;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .btn-primary:hover { background: #15803d; }
+    .btn-primary:disabled { background: #9ca3af; cursor: default; }
+
+    .file-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+      margin-bottom: 1.25rem;
+    }
+    .file-table th {
+      background: #f9fafb;
+      text-align: left;
+      padding: 0.625rem 0.875rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #6b7280;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .file-table td {
+      padding: 0.625rem 0.875rem;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 0.8125rem;
+    }
+    .file-table tr:last-child td { border-bottom: none; }
+    .file-table tr.error td { color: #dc2626; }
+
+    .badge {
+      display: inline-block;
+      border-radius: 99px;
+      padding: 0.1rem 0.5rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      margin-left: 0.25rem;
+    }
+    .badge-nl { background: #dbeafe; color: #1e40af; }
+    .badge-fr { background: #fef3c7; color: #92400e; }
+    .badge-warn { background: #fef9c3; color: #854d0e; }
+
+    .warn-box {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-size: 0.8125rem;
+      color: #92400e;
+      margin-bottom: 1.25rem;
+    }
+    .warn-box strong { display: block; margin-bottom: 0.25rem; }
+
+    .success-box {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-size: 0.8125rem;
+      color: #166534;
+      margin-bottom: 1.25rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<header class="app-header">
+  <div>
+    <h1>Tree Test — CSV Merger</h1>
+    <p>Combine individual participant CSVs into one file for path-analysis.html</p>
+  </div>
+</header>
+
+<div id="upload-area">
+  <div class="drop-zone" id="dz">
+    <div class="dz-icon">📂</div>
+    <h2>Drop participant CSV files here</h2>
+    <p>Drop multiple files at once, or click to select.<br>Each file = one participant session downloaded from the tree test.</p>
+    <button class="btn-upload" id="pick-btn">Select files</button>
+    <input type="file" id="file-input" multiple accept=".csv,text/csv">
+  </div>
+</div>
+
+<div id="results-area">
+  <div class="results-header">
+    <div>
+      <div class="results-title" id="results-title">Files loaded</div>
+      <div class="results-meta" id="results-meta"></div>
+    </div>
+    <div class="btn-group">
+      <button class="btn-secondary" id="clear-btn">Clear all</button>
+      <button class="btn-secondary" id="add-more-btn">Add more files</button>
+      <button class="btn-primary" id="download-btn">Download merged CSV</button>
+    </div>
+  </div>
+
+  <div class="warn-box" id="warn-box" style="display:none">
+    <strong>Warnings</strong>
+    <span id="warn-text"></span>
+  </div>
+
+  <div class="success-box" id="success-box">
+    Merged CSV downloaded. Drop it into <strong>path-analysis.html</strong> to visualise the results.
+  </div>
+
+  <table class="file-table" id="file-table">
+    <thead>
+      <tr>
+        <th>File</th>
+        <th>Participant</th>
+        <th>Lang</th>
+        <th>Tasks</th>
+        <th>Pre-test</th>
+        <th>Post-study</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="file-tbody"></tbody>
+  </table>
+</div>
+
+<input type="file" id="add-more-input" multiple accept=".csv,text/csv" style="display:none">
+
+<script>
+/* ── CSV parser (same logic as path-analysis.html) ─────────────────────── */
+function parseCSV(text) {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  var lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+
+  function parseLine(line) {
+    var cells = [], cur = '', q = false;
+    for (var i = 0; i < line.length; i++) {
+      var c = line[i];
+      if (q) {
+        if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (c === '"') { q = false; }
+        else { cur += c; }
+      } else if (c === '"') { q = true; }
+      else if (c === ',') { cells.push(cur); cur = ''; }
+      else { cur += c; }
+    }
+    cells.push(cur);
+    return cells;
+  }
+
+  var headers = parseLine(lines[0]);
+  var rows = [];
+  for (var i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    var cells = parseLine(lines[i]);
+    var row = {};
+    headers.forEach(function (h, j) { row[h.trim()] = (cells[j] || '').trim(); });
+    rows.push(row);
+  }
+  return { headers: headers.map(function (h) { return h.trim(); }), rows: rows };
+}
+
+/* ── CSV serialiser ─────────────────────────────────────────────────────── */
+function csvCell(v) {
+  var s = v == null ? '' : String(v);
+  if (s.indexOf(',') !== -1 || s.indexOf('"') !== -1 || s.indexOf('\n') !== -1) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+/* ── State ──────────────────────────────────────────────────────────────── */
+var loadedFiles = []; // [{name, headers, rows, pid, lang, taskCount, hasPre, hasPost, error}]
+
+/* ── DOM refs ───────────────────────────────────────────────────────────── */
+var dz           = document.getElementById('dz');
+var fileInput    = document.getElementById('file-input');
+var addMoreInput = document.getElementById('add-more-input');
+var pickBtn      = document.getElementById('pick-btn');
+var clearBtn     = document.getElementById('clear-btn');
+var addMoreBtn   = document.getElementById('add-more-btn');
+var downloadBtn  = document.getElementById('download-btn');
+var uploadArea   = document.getElementById('upload-area');
+var resultsArea  = document.getElementById('results-area');
+var fileTable    = document.getElementById('file-tbody');
+var resultsMeta  = document.getElementById('results-meta');
+var warnBox      = document.getElementById('warn-box');
+var warnText     = document.getElementById('warn-text');
+var successBox   = document.getElementById('success-box');
+
+/* ── Drop zone ──────────────────────────────────────────────────────────── */
+dz.addEventListener('dragover', function (e) { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', function () { dz.classList.remove('drag-over'); });
+dz.addEventListener('drop', function (e) {
+  e.preventDefault();
+  dz.classList.remove('drag-over');
+  handleFiles(Array.from(e.dataTransfer.files));
+});
+pickBtn.addEventListener('click', function () { fileInput.click(); });
+fileInput.addEventListener('change', function () { handleFiles(Array.from(fileInput.files)); fileInput.value = ''; });
+clearBtn.addEventListener('click', function () {
+  loadedFiles = [];
+  fileTable.innerHTML = '';
+  resultsArea.style.display = 'none';
+  uploadArea.style.display = '';
+  warnBox.style.display = 'none';
+  successBox.style.display = 'none';
+});
+addMoreBtn.addEventListener('click', function () { addMoreInput.click(); });
+addMoreInput.addEventListener('change', function () { handleFiles(Array.from(addMoreInput.files)); addMoreInput.value = ''; });
+
+/* ── File loading ───────────────────────────────────────────────────────── */
+function handleFiles(files) {
+  var remaining = files.length;
+  if (!remaining) return;
+  files.forEach(function (file) {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      processFile(file.name, e.target.result);
+      remaining--;
+      if (remaining === 0) renderTable();
+    };
+    reader.readAsText(file, 'UTF-8');
+  });
+}
+
+function processFile(name, text) {
+  var parsed;
+  try { parsed = parseCSV(text); } catch (err) {
+    loadedFiles.push({ name: name, error: 'Parse error: ' + err.message });
+    return;
+  }
+
+  var rows = parsed.rows;
+  var headers = parsed.headers;
+
+  if (!rows.length) {
+    loadedFiles.push({ name: name, error: 'Empty file' });
+    return;
+  }
+
+  if (!headers.includes('participant_id') || !headers.includes('task_id')) {
+    loadedFiles.push({ name: name, error: 'Not a tree test CSV (missing required columns)' });
+    return;
+  }
+
+  var taskRows  = rows.filter(function (r) { return r.task_id && r.task_id !== 'pre_test' && r.task_id !== 'post_study'; });
+  var preRow    = rows.filter(function (r) { return r.task_id === 'pre_test'; });
+  var postRow   = rows.filter(function (r) { return r.task_id === 'post_study'; });
+  var pid       = (taskRows[0] || rows[0]).participant_id || '?';
+  var lang      = (taskRows[0] || rows[0]).language || '?';
+
+  loadedFiles.push({
+    name: name,
+    headers: headers,
+    rows: rows,
+    pid: pid,
+    lang: lang,
+    taskCount: taskRows.length,
+    hasPre: preRow.length > 0,
+    hasPost: postRow.length > 0,
+    error: null
+  });
+}
+
+/* ── Render file table ──────────────────────────────────────────────────── */
+function renderTable() {
+  uploadArea.style.display = 'none';
+  resultsArea.style.display = 'block';
+  successBox.style.display = 'none';
+
+  var valid   = loadedFiles.filter(function (f) { return !f.error; });
+  var invalid = loadedFiles.filter(function (f) { return f.error; });
+
+  // Check for duplicate participant IDs
+  var pidMap = {};
+  var dupPids = [];
+  valid.forEach(function (f) {
+    if (pidMap[f.pid]) dupPids.push(f.pid);
+    pidMap[f.pid] = true;
+  });
+
+  // Warnings
+  var warns = [];
+  if (dupPids.length) warns.push('Duplicate participant IDs: ' + dupPids.join(', ') + '. Each participant should have a unique ID.');
+  if (invalid.length) warns.push(invalid.length + ' file(s) could not be parsed and were skipped.');
+
+  if (warns.length) {
+    warnBox.style.display = '';
+    warnText.textContent = warns.join(' ');
+  } else {
+    warnBox.style.display = 'none';
+  }
+
+  var totalTasks = valid.reduce(function (s, f) { return s + f.taskCount; }, 0);
+  resultsMeta.textContent = valid.length + ' participant' + (valid.length !== 1 ? 's' : '') +
+    ' · ' + totalTasks + ' task rows total';
+
+  downloadBtn.disabled = valid.length === 0;
+
+  fileTable.innerHTML = '';
+  loadedFiles.forEach(function (f) {
+    var tr = document.createElement('tr');
+    if (f.error) tr.className = 'error';
+
+    var langBadge = '';
+    if (!f.error) {
+      langBadge = '<span class="badge badge-' + f.lang + '">' + f.lang.toUpperCase() + '</span>';
+    }
+
+    var dupWarn = (!f.error && dupPids.indexOf(f.pid) !== -1)
+      ? ' <span class="badge badge-warn">dup ID</span>' : '';
+
+    tr.innerHTML = [
+      '<td>' + escHtml(f.name) + '</td>',
+      '<td>' + (f.error ? '—' : escHtml(f.pid) + dupWarn) + '</td>',
+      '<td>' + (f.error ? '—' : langBadge) + '</td>',
+      '<td>' + (f.error ? '—' : f.taskCount) + '</td>',
+      '<td>' + (f.error ? '—' : (f.hasPre  ? '✓' : '–')) + '</td>',
+      '<td>' + (f.error ? '—' : (f.hasPost ? '✓' : '–')) + '</td>',
+      '<td>' + (f.error ? escHtml(f.error) : '<span style="color:#16a34a;font-weight:600">OK</span>') + '</td>'
+    ].join('');
+    fileTable.appendChild(tr);
+  });
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/* ── Download merged CSV ────────────────────────────────────────────────── */
+downloadBtn.addEventListener('click', function () {
+  var valid = loadedFiles.filter(function (f) { return !f.error && f.rows; });
+  if (!valid.length) return;
+
+  // Use headers from the first valid file
+  var headers = valid[0].headers;
+  var lines = [headers.map(csvCell).join(',')];
+
+  valid.forEach(function (f) {
+    // Re-serialise each row using the canonical header order
+    f.rows.forEach(function (row) {
+      lines.push(headers.map(function (h) { return csvCell(row[h] || ''); }).join(','));
+    });
+  });
+
+  var csv = lines.join('\r\n');
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'tree-test-merged-' + isoDate() + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  successBox.style.display = '';
+});
+
+function isoDate() {
+  var d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+</script>
+</body>
+</html>
