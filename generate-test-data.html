@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tree Test — Fake Data Generator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f3f4f6;
+      color: #1f2937;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .app-header {
+      background: #1e3a5f;
+      color: white;
+      padding: 0.875rem 1.5rem;
+    }
+    .app-header h1 { font-size: 0.9375rem; font-weight: 700; }
+    .app-header p  { font-size: 0.8125rem; opacity: 0.65; margin-top: 1px; }
+
+    .main { max-width: 860px; margin: 2rem auto; padding: 0 1.5rem; display: grid; grid-template-columns: 280px 1fr; gap: 1.25rem; align-items: start; }
+
+    /* ── Controls ─────────────────────────────────────────────────────────── */
+    .controls {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .controls-title { font-weight: 700; font-size: 0.875rem; }
+
+    .field { display: flex; flex-direction: column; gap: 0.375rem; }
+    .field label { font-size: 0.75rem; font-weight: 600; color: #374151; }
+
+    input[type="number"],
+    select {
+      border: 1.5px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 0.375rem 0.5rem;
+      font-size: 0.875rem;
+      font-family: inherit;
+      color: #1f2937;
+      background: white;
+      width: 100%;
+    }
+    input[type="number"]:focus,
+    select:focus { outline: none; border-color: #1d4ed8; }
+
+    .behavior-grid { display: flex; flex-direction: column; gap: 0.625rem; }
+    .brow { display: flex; align-items: center; gap: 0.5rem; }
+    .brow-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+    .brow-dot.direct   { background: #16a34a; }
+    .brow-dot.indirect { background: #86efac; border: 1px solid #4ade80; }
+    .brow-dot.close    { background: #f97316; }
+    .brow-dot.wrong    { background: #dc2626; }
+
+    .brow label { flex: 1; font-size: 0.8125rem; color: #374151; }
+
+    .brow input[type="range"] {
+      width: 80px;
+      border: none;
+      padding: 0;
+      accent-color: #1d4ed8;
+      background: transparent;
+    }
+    .brow-val {
+      width: 36px;
+      text-align: right;
+      font-size: 0.8125rem;
+      color: #6b7280;
+      font-family: monospace;
+    }
+
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      padding-top: 0.375rem;
+      border-top: 1px solid #f3f4f6;
+    }
+    .total-row .total-val { font-weight: 700; }
+    .total-row .total-val.ok  { color: #16a34a; }
+    .total-row .total-val.bad { color: #dc2626; }
+
+    .btn-generate {
+      padding: 0.625rem 1rem;
+      background: #1d4ed8;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      width: 100%;
+      transition: background .15s;
+    }
+    .btn-generate:hover:not(:disabled) { background: #1e40af; }
+    .btn-generate:disabled { opacity: 0.5; cursor: default; }
+
+    /* ── Results panel ────────────────────────────────────────────────────── */
+    .results-panel {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .results-header {
+      padding: 0.875rem 1.25rem;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: #fafafa;
+    }
+    .results-title { font-weight: 700; font-size: 0.875rem; flex: 1; }
+
+    .btn-download {
+      padding: 0.4rem 0.875rem;
+      background: #16a34a;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background .15s;
+      display: none;
+    }
+    .btn-download:hover { background: #15803d; }
+
+    .empty-state {
+      padding: 3rem 2rem;
+      text-align: center;
+      color: #9ca3af;
+    }
+    .empty-state .es-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .empty-state p { font-size: 0.875rem; }
+
+    /* ── Participant table ─────────────────────────────────────────────────── */
+    .p-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+    .p-table th {
+      padding: 0.5rem 0.875rem;
+      text-align: left;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: #9ca3af;
+      border-bottom: 2px solid #e5e7eb;
+      background: #f9fafb;
+    }
+    .p-table td {
+      padding: 0.5rem 0.875rem;
+      border-bottom: 1px solid #f3f4f6;
+      color: #374151;
+    }
+    .p-table tr:last-child td { border-bottom: none; }
+    .p-table tr:hover td { background: #fafafa; }
+
+    .pid-badge {
+      font-family: 'SF Mono', ui-monospace, monospace;
+      font-size: 0.75rem;
+      background: #eff6ff;
+      color: #1d4ed8;
+      padding: 0.1rem 0.375rem;
+      border-radius: 3px;
+    }
+    .lang-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      background: #f3f4f6;
+      color: #6b7280;
+      padding: 0.1rem 0.375rem;
+      border-radius: 3px;
+      font-family: monospace;
+    }
+
+    .acc-bar {
+      width: 80px;
+      height: 6px;
+      background: #f3f4f6;
+      border-radius: 3px;
+      overflow: hidden;
+      display: inline-flex;
+    }
+    .acc-fill { height: 100%; background: #16a34a; }
+
+    .outcome-mini {
+      display: flex;
+      gap: 2px;
+      align-items: center;
+    }
+    .om-dot { width: 8px; height: 8px; border-radius: 2px; }
+    .om-dot.direct   { background: #16a34a; }
+    .om-dot.indirect { background: #86efac; border: 1px solid #4ade80; }
+    .om-dot.close    { background: #f97316; }
+    .om-dot.wrong    { background: #dc2626; }
+
+    .summary-row {
+      padding: 0.625rem 0.875rem;
+      font-size: 0.75rem;
+      color: #6b7280;
+      background: #f9fafb;
+      border-top: 1px solid #e5e7eb;
+    }
+  </style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>Tree Test — Fake Data Generator</h1>
+  <p>Generates realistic fake participant data for testing path-analysis.html</p>
+</header>
+
+<div class="main">
+
+  <!-- ── Controls ─────────────────────────────────────────────────────────── -->
+  <div class="controls">
+    <div class="controls-title">Settings</div>
+
+    <div class="field">
+      <label for="n-participants">Number of participants</label>
+      <input type="number" id="n-participants" min="1" max="100" value="15">
+    </div>
+
+    <div class="field">
+      <label for="language-select">Language</label>
+      <select id="language-select">
+        <option value="nl">Dutch (NL)</option>
+        <option value="fr">French (FR)</option>
+        <option value="mix">Mixed (NL + FR, ~50/50)</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Behaviour distribution</label>
+      <div class="behavior-grid">
+        <div class="brow">
+          <div class="brow-dot direct"></div>
+          <label>Direct correct</label>
+          <input type="range" id="pct-direct"   min="0" max="100" value="30" oninput="syncSliders('direct')">
+          <span class="brow-val" id="val-direct">30%</span>
+        </div>
+        <div class="brow">
+          <div class="brow-dot indirect"></div>
+          <label>Indirect correct</label>
+          <input type="range" id="pct-indirect" min="0" max="100" value="25" oninput="syncSliders('indirect')">
+          <span class="brow-val" id="val-indirect">25%</span>
+        </div>
+        <div class="brow">
+          <div class="brow-dot close"></div>
+          <label>Close but wrong</label>
+          <input type="range" id="pct-close"    min="0" max="100" value="25" oninput="syncSliders('close')">
+          <span class="brow-val" id="val-close">25%</span>
+        </div>
+        <div class="brow">
+          <div class="brow-dot wrong"></div>
+          <label>Completely wrong</label>
+          <input type="range" id="pct-wrong"    min="0" max="100" value="20" oninput="syncSliders('wrong')">
+          <span class="brow-val" id="val-wrong">20%</span>
+        </div>
+        <div class="total-row">
+          <span>Total</span>
+          <span class="total-val" id="total-val">100%</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-generate" id="btn-generate" onclick="runGenerate()">Generate</button>
+  </div>
+
+  <!-- ── Results ───────────────────────────────────────────────────────────── -->
+  <div class="results-panel">
+    <div class="results-header">
+      <span class="results-title" id="results-title">Results</span>
+      <button class="btn-download" id="btn-download" onclick="downloadCSV()">⬇ Download CSV</button>
+    </div>
+    <div id="results-body">
+      <div class="empty-state">
+        <div class="es-icon">🧪</div>
+        <p>Configure the settings and click <strong>Generate</strong>.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="config.js"></script>
+<script>
+'use strict';
+
+/* ── Slider sync ──────────────────────────────────────────────────────────── */
+var KEYS = ['direct', 'indirect', 'close', 'wrong'];
+
+function syncSliders(changed) {
+  KEYS.forEach(function(k) {
+    document.getElementById('val-' + k).textContent = document.getElementById('pct-' + k).value + '%';
+  });
+  var total = KEYS.reduce(function(s, k) { return s + +document.getElementById('pct-' + k).value; }, 0);
+  var tv = document.getElementById('total-val');
+  tv.textContent = total + '%';
+  tv.className = 'total-val ' + (total === 100 ? 'ok' : 'bad');
+  document.getElementById('btn-generate').disabled = total !== 100;
+}
+
+/* ── PRNG (same LCG as app.js) ────────────────────────────────────────────── */
+function makePRNG(seed) {
+  var s = seed >>> 0;
+  return function () {
+    s = (Math.imul(1664525, s) + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+}
+
+function shufflePRNG(arr, prng) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(prng() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+/* ── Tree utilities ───────────────────────────────────────────────────────── */
+function buildPathMap(nodes, ancestors, map) {
+  (nodes || []).forEach(function (node) {
+    var path = ancestors.concat({ id: node.id, label: node.label });
+    map[node.id] = path;
+    if (node.children && node.children.length) buildPathMap(node.children, path, map);
+  });
+}
+
+function collectLeaves(nodes, out) {
+  out = out || [];
+  (nodes || []).forEach(function (n) {
+    if (!n.children || !n.children.length) out.push(n);
+    else collectLeaves(n.children, out);
+  });
+  return out;
+}
+
+/* ── Build the event list for a direct path to a given leaf ──────────────── */
+function eventsTo(leafId, pathMap) {
+  var path = pathMap[leafId];
+  if (!path || !path.length) return null;
+  var evts = [];
+  for (var i = 0; i < path.length - 1; i++) {
+    evts.push({
+      type: 'open', nodeId: path[i].id, label: path[i].label,
+      fullPath: path.slice(0, i + 1).map(function (n) { return n.label; }).join(' > ')
+    });
+  }
+  var leaf = path[path.length - 1];
+  evts.push({
+    type: 'select', nodeId: leaf.id, label: leaf.label,
+    fullPath: path.map(function (n) { return n.label; }).join(' > ')
+  });
+  return evts;
+}
+
+/* ── Pick a leaf that is NOT the correct one ──────────────────────────────── */
+function pickOtherLeaf(correctId, allLeaves, pathMap, prng, sameTier1) {
+  var cpath = pathMap[correctId];
+  var cTier1 = cpath ? cpath[0].id : null;
+  var pool = allLeaves.filter(function (l) {
+    if (l.id === correctId) return false;
+    var p = pathMap[l.id];
+    if (!p) return false;
+    return sameTier1 ? p[0].id === cTier1 : p[0].id !== cTier1;
+  });
+  if (!pool.length) pool = allLeaves.filter(function (l) { return l.id !== correctId; });
+  if (!pool.length) return null;
+  return pool[Math.floor(prng() * pool.length)];
+}
+
+/* ── Simulate one task ────────────────────────────────────────────────────── */
+function simulateTask(task, lang, behavior, prng, allLeaves, pathMap) {
+  var correctId = task['correct_' + lang];
+  var events = [];
+  var finalAnswerId;
+
+  if (behavior === 'direct') {
+    events = eventsTo(correctId, pathMap) || [];
+    finalAnswerId = correctId;
+
+  } else if (behavior === 'indirect_explore') {
+    /* Open a wrong Tier-1 branch (without selecting), then navigate to correct */
+    var wrongLeaf = pickOtherLeaf(correctId, allLeaves, pathMap, prng, false);
+    if (wrongLeaf) {
+      var wPath = pathMap[wrongLeaf.id] || [];
+      /* Add only the first OPEN (Tier-1) of the wrong branch to keep it realistic */
+      if (wPath.length > 1) {
+        events.push({
+          type: 'open', nodeId: wPath[0].id, label: wPath[0].label,
+          fullPath: wPath[0].label
+        });
+        /* Sometimes also open a Tier-2 of the wrong branch */
+        if (wPath.length > 2 && prng() > 0.5) {
+          events.push({
+            type: 'open', nodeId: wPath[1].id, label: wPath[1].label,
+            fullPath: wPath[0].label + ' > ' + wPath[1].label
+          });
+        }
+      }
+    }
+    var cEvts = eventsTo(correctId, pathMap) || [];
+    events = events.concat(cEvts);
+    finalAnswerId = correctId;
+
+  } else if (behavior === 'indirect_select') {
+    /* Select a wrong leaf, then backtrack and select the correct one */
+    var wrongLeaf2 = pickOtherLeaf(correctId, allLeaves, pathMap, prng, false);
+    if (wrongLeaf2) events = eventsTo(wrongLeaf2.id, pathMap) || [];
+    var cEvts2 = eventsTo(correctId, pathMap) || [];
+    events = events.concat(cEvts2);
+    finalAnswerId = correctId;
+
+  } else if (behavior === 'close') {
+    /* Navigate into the correct Tier-1 branch but pick a sibling leaf */
+    var closeLeaf = pickOtherLeaf(correctId, allLeaves, pathMap, prng, true /* same tier1 */);
+    if (!closeLeaf) closeLeaf = pickOtherLeaf(correctId, allLeaves, pathMap, prng, false);
+    if (closeLeaf) {
+      events = eventsTo(closeLeaf.id, pathMap) || [];
+      finalAnswerId = closeLeaf.id;
+    } else {
+      events = eventsTo(correctId, pathMap) || [];
+      finalAnswerId = correctId;
+    }
+
+  } else { /* 'wrong' */
+    var wrongLeaf3 = pickOtherLeaf(correctId, allLeaves, pathMap, prng, false);
+    if (!wrongLeaf3) wrongLeaf3 = pickOtherLeaf(correctId, allLeaves, pathMap, prng, true);
+    if (wrongLeaf3) {
+      events = eventsTo(wrongLeaf3.id, pathMap) || [];
+      finalAnswerId = wrongLeaf3.id;
+    } else {
+      events = eventsTo(correctId, pathMap) || [];
+      finalAnswerId = correctId;
+    }
+  }
+
+  /* Fallback: should never be needed, but just in case */
+  if (!events.length || !finalAnswerId) {
+    var fallback = allLeaves[Math.floor(prng() * allLeaves.length)];
+    events = eventsTo(fallback.id, pathMap) || [];
+    finalAnswerId = fallback.id;
+  }
+
+  /* Derive CSV columns from events */
+  var pathEvents = events.map(function (e) {
+    return (e.type === 'open' ? 'OPEN:' : 'SELECT:') + e.nodeId;
+  }).join(' | ');
+
+  var pathLabels = events.map(function (e) {
+    return (e.type === 'open' ? 'OPEN:' : 'SELECT:') + e.fullPath;
+  }).join(' | ');
+
+  var firstOpenEvt = null, firstSelectEvt = null;
+  for (var i = 0; i < events.length; i++) {
+    if (!firstOpenEvt   && events[i].type === 'open')   firstOpenEvt   = events[i];
+    if (!firstSelectEvt && events[i].type === 'select') firstSelectEvt = events[i];
+  }
+
+  var firstOpened  = firstOpenEvt   ? (pathMap[firstOpenEvt.nodeId]   || [])[0].label : '';
+  var firstClick   = firstSelectEvt ? firstSelectEvt.nodeId : finalAnswerId;
+  var nSelects     = events.filter(function (e) { return e.type === 'select'; }).length;
+  var nBacktrack   = Math.max(0, nSelects - 1);
+  var isCorrect    = finalAnswerId === correctId;
+  var fcCorrect    = firstClick === correctId;
+
+  var finalPath    = pathMap[finalAnswerId] || [];
+  var finalLabel   = finalPath.map(function (n) { return n.label; }).join(' > ');
+
+  /* Realistic timing: direct = faster, indirect/wrong = slower */
+  var baseTime = behavior === 'direct' ? 8 : (behavior.indexOf('indirect') === 0 ? 28 : 18);
+  var timeSeconds = Math.floor(baseTime + prng() * baseTime + prng() * 8);
+
+  /* Realistic confidence: correct → tends higher, wrong → tends lower */
+  var conf = isCorrect
+    ? Math.min(5, Math.floor(prng() * 3) + 3)
+    : Math.max(1, Math.floor(prng() * 3) + 1);
+
+  return {
+    pathEvents:      pathEvents,
+    pathLabels:      pathLabels,
+    firstClick:      firstClick,
+    firstClickCorrect: String(fcCorrect),
+    firstOpened:     firstOpened,
+    finalAnswer:     finalAnswerId,
+    finalAnswerPath: finalLabel,
+    nBacktrack:      nBacktrack,
+    correct:         String(isCorrect),
+    timeSeconds:     timeSeconds,
+    confidence:      conf,
+    isCorrect:       isCorrect,
+    behavior:        behavior
+  };
+}
+
+/* ── Generate one participant ─────────────────────────────────────────────── */
+function generateParticipant(lang, behaviorMix) {
+  var seed = Math.floor(Math.random() * 0x7fffffff);
+  var prng = makePRNG(seed);
+  var pid  = 'TEST-' + String(1000 + Math.floor(Math.random() * 9000));
+
+  /* Build lang-specific data structures */
+  var pm = {};
+  buildPathMap(CONFIG.trees[lang].children || [], [], pm);
+  var allLeaves = collectLeaves(CONFIG.trees[lang].children || []);
+
+  /* Shuffle task order */
+  var indices   = CONFIG.tasks.map(function (_, i) { return i; });
+  var taskOrder = shufflePRNG(indices, makePRNG(seed));
+
+  var rows    = [];
+  var summary = { direct: 0, indirect: 0, close: 0, wrong: 0, correct: 0, total: 0 };
+
+  /* ── Pre-test row ─────────────────────────────────────────────────────── */
+  var ptCols = CONFIG.i18n[lang].pretestCols || [];
+  var preA   = [];
+  for (var pi = 0; pi < 5; pi++) {
+    preA.push(ptCols.length ? ptCols[Math.floor(prng() * ptCols.length)] : '');
+  }
+  rows.push({
+    participant_id: pid, language: lang, task_id: 'pre_test',
+    task_order: '', scenario_text: '',
+    path_events: '', path_labels: '', first_click: '', first_click_correct: '',
+    first_opened: '', final_answer: '', final_answer_path: '', n_backtrack: '',
+    correct: '', time_seconds: '', confidence: '', comment: '',
+    randomisation_seed: seed,
+    pretest_computer: preA[0], pretest_smartphone: preA[1],
+    pretest_intranet_webe: preA[2], pretest_hr_contact: preA[3],
+    pretest_hr_servicedesk: preA[4],
+    ease: '', structure_words: '', structure_other: '', other_comments: ''
+  });
+
+  /* ── Task rows ────────────────────────────────────────────────────────── */
+  taskOrder.forEach(function (taskIdx, step) {
+    var task      = CONFIG.tasks[taskIdx];
+    var correctId = task['correct_' + lang];
+
+    /* Pick behavior */
+    var behavior;
+    if (!correctId || !pm[correctId]) {
+      behavior = 'wrong';
+    } else {
+      var r = prng(), cum = 0;
+      behavior = 'wrong';
+      for (var b in behaviorMix) {
+        cum += behaviorMix[b];
+        if (r < cum) { behavior = b; break; }
+      }
+      /* Split 'indirect' into explore vs select 50/50 */
+      if (behavior === 'indirect') behavior = prng() < 0.5 ? 'indirect_explore' : 'indirect_select';
+    }
+
+    var res = simulateTask(task, lang, behavior, prng, allLeaves, pm);
+
+    /* Track summary */
+    var summaryBehavior = behavior.indexOf('indirect') === 0 ? 'indirect' : behavior;
+    summary[summaryBehavior]++;
+    summary.total++;
+    if (res.isCorrect) summary.correct++;
+
+    rows.push({
+      participant_id: pid, language: lang,
+      task_id:        task.id,
+      task_order:     step + 1,
+      scenario_text:  task['scenario_' + lang] || '',
+      path_events:    res.pathEvents,
+      path_labels:    res.pathLabels,
+      first_click:    res.firstClick,
+      first_click_correct: res.firstClickCorrect,
+      first_opened:   res.firstOpened,
+      final_answer:   res.finalAnswer,
+      final_answer_path: res.finalAnswerPath,
+      n_backtrack:    res.nBacktrack,
+      correct:        res.correct,
+      time_seconds:   res.timeSeconds,
+      confidence:     res.confidence,
+      comment:        '',
+      randomisation_seed: seed,
+      pretest_computer: '', pretest_smartphone: '', pretest_intranet_webe: '',
+      pretest_hr_contact: '', pretest_hr_servicedesk: '',
+      ease: '', structure_words: '', structure_other: '', other_comments: ''
+    });
+  });
+
+  /* ── Post-study row ───────────────────────────────────────────────────── */
+  var sOpts = CONFIG.i18n[lang].structureOptions || [];
+  var sPicked = shufflePRNG(sOpts, prng).slice(0, Math.floor(prng() * 3) + 1);
+
+  rows.push({
+    participant_id: pid, language: lang, task_id: 'post_study',
+    task_order: '', scenario_text: '',
+    path_events: '', path_labels: '', first_click: '', first_click_correct: '',
+    first_opened: '', final_answer: '', final_answer_path: '', n_backtrack: '',
+    correct: '', time_seconds: '', confidence: '', comment: '',
+    randomisation_seed: seed,
+    pretest_computer: '', pretest_smartphone: '', pretest_intranet_webe: '',
+    pretest_hr_contact: '', pretest_hr_servicedesk: '',
+    ease: Math.floor(prng() * 5) + 1,
+    structure_words: sPicked.join(' | '),
+    structure_other: '',
+    other_comments: ''
+  });
+
+  return { rows: rows, pid: pid, lang: lang, summary: summary };
+}
+
+/* ── CSV serialization ────────────────────────────────────────────────────── */
+var COLS = [
+  'participant_id', 'language', 'task_id', 'task_order', 'scenario_text',
+  'path_events', 'path_labels',
+  'first_click', 'first_click_correct', 'first_opened',
+  'final_answer', 'final_answer_path', 'n_backtrack',
+  'correct', 'time_seconds', 'confidence', 'comment', 'randomisation_seed',
+  'pretest_computer', 'pretest_smartphone', 'pretest_intranet_webe',
+  'pretest_hr_contact', 'pretest_hr_servicedesk',
+  'ease', 'structure_words', 'structure_other', 'other_comments'
+];
+
+function cell(v) {
+  var s = String(v == null ? '' : v);
+  return /[,"\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function toCSV(participants) {
+  var lines = [COLS.join(',')];
+  participants.forEach(function (p) {
+    p.rows.forEach(function (r) {
+      lines.push(COLS.map(function (c) { return cell(r[c] != null ? r[c] : ''); }).join(','));
+    });
+  });
+  return lines.join('\r\n');
+}
+
+/* ── Run ──────────────────────────────────────────────────────────────────── */
+var lastParticipants = null;
+
+function runGenerate() {
+  var n    = Math.max(1, parseInt(document.getElementById('n-participants').value) || 15);
+  var lang = document.getElementById('language-select').value;
+
+  var raw = {
+    direct:   +document.getElementById('pct-direct').value   / 100,
+    indirect: +document.getElementById('pct-indirect').value / 100,
+    close:    +document.getElementById('pct-close').value    / 100,
+    wrong:    +document.getElementById('pct-wrong').value    / 100
+  };
+
+  /* Normalise in case of floating-point drift */
+  var sum = raw.direct + raw.indirect + raw.close + raw.wrong;
+  var mix = {};
+  for (var k in raw) mix[k] = raw[k] / (sum || 1);
+
+  /* Cumulative thresholds */
+  var cumMix = {};
+  var c = 0;
+  ['direct','indirect','close','wrong'].forEach(function(k){ c += mix[k]; cumMix[k] = c; });
+
+  var participants = [];
+  for (var i = 0; i < n; i++) {
+    var pLang = lang === 'mix' ? (i % 2 === 0 ? 'nl' : 'fr') : lang;
+    participants.push(generateParticipant(pLang, cumMix));
+  }
+
+  lastParticipants = participants;
+  renderResults(participants);
+}
+
+function renderResults(participants) {
+  var nTasks  = CONFIG.tasks.length;
+  var totalTasks = 0, totalCorrect = 0;
+
+  var tableRows = participants.map(function (p) {
+    var s = p.summary;
+    var acc = s.total ? Math.round(s.correct / s.total * 100) : 0;
+    totalTasks   += s.total;
+    totalCorrect += s.correct;
+
+    return (
+      '<tr>' +
+        '<td><span class="pid-badge">' + p.pid + '</span></td>' +
+        '<td><span class="lang-badge">' + p.lang.toUpperCase() + '</span></td>' +
+        '<td>' + s.total + '</td>' +
+        '<td>' +
+          '<div class="outcome-mini">' +
+            dot('direct',   s.direct) +
+            dot('indirect', s.indirect) +
+            dot('close',    s.close) +
+            dot('wrong',    s.wrong) +
+          '</div>' +
+        '</td>' +
+        '<td>' +
+          '<div style="display:flex;align-items:center;gap:0.5rem">' +
+            '<div class="acc-bar"><div class="acc-fill" style="width:' + acc + '%"></div></div>' +
+            '<span>' + acc + '%</span>' +
+          '</div>' +
+        '</td>' +
+      '</tr>'
+    );
+  });
+
+  function dot(cls, n) {
+    if (!n) return '';
+    return '<div class="om-dot ' + cls + '" title="' + cls + ': ' + n + '"></div>';
+  }
+
+  var overallAcc = totalTasks ? Math.round(totalCorrect / totalTasks * 100) : 0;
+
+  document.getElementById('results-title').textContent =
+    participants.length + ' participants · ' + nTasks + ' tasks each · overall accuracy ' + overallAcc + '%';
+
+  document.getElementById('results-body').innerHTML =
+    '<table class="p-table">' +
+      '<thead><tr>' +
+        '<th>Participant</th><th>Lang</th><th>Tasks</th><th>Behaviour</th><th>Accuracy</th>' +
+      '</tr></thead>' +
+      '<tbody>' + tableRows.join('') + '</tbody>' +
+    '</table>' +
+    '<div class="summary-row">Dots: ' +
+      '<span style="color:#16a34a">■ direct</span>  ' +
+      '<span style="color:#86efac">■ indirect</span>  ' +
+      '<span style="color:#f97316">■ close</span>  ' +
+      '<span style="color:#dc2626">■ wrong</span>' +
+    '</div>';
+
+  var dl = document.getElementById('btn-download');
+  dl.style.display = 'inline-block';
+}
+
+function downloadCSV() {
+  if (!lastParticipants) return;
+  var csv  = toCSV(lastParticipants);
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'test-data-' + lastParticipants.length + 'p-' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tree Test — Path Analysis</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f3f4f6;
+      color: #1f2937;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────────────── */
+    .app-header {
+      background: #1e3a5f;
+      color: white;
+      padding: 0.875rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .app-header h1 { font-size: 0.9375rem; font-weight: 700; }
+    .app-header p  { font-size: 0.8125rem; opacity: 0.65; margin-top: 1px; }
+
+    /* ── Upload ───────────────────────────────────────────────────────────── */
+    #upload-area { max-width: 640px; margin: 3.5rem auto; padding: 0 1.5rem; }
+
+    .drop-zone {
+      border: 2px dashed #d1d5db;
+      border-radius: 12px;
+      padding: 3rem 2rem;
+      text-align: center;
+      background: white;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+    }
+    .drop-zone.drag-over { border-color: #1d4ed8; background: #eff6ff; }
+    .dz-icon { font-size: 2.25rem; margin-bottom: 0.75rem; }
+    .drop-zone h2 { font-size: 1.0625rem; margin-bottom: 0.375rem; }
+    .drop-zone p  { color: #6b7280; font-size: 0.8125rem; margin-bottom: 1.25rem; line-height: 1.6; }
+    .btn-upload {
+      padding: 0.5rem 1.25rem;
+      background: #1d4ed8;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .btn-upload:hover { background: #1e40af; }
+    #file-input { display: none; }
+
+    /* ── Analysis area ────────────────────────────────────────────────────── */
+    #analysis-area { display: none; padding: 1.25rem 1.5rem; max-width: 1120px; margin: 0 auto; }
+
+    .analysis-bar {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 0.875rem 1.25rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.875rem;
+      flex-wrap: wrap;
+    }
+    .analysis-bar-title { font-weight: 700; font-size: 0.9375rem; margin-right: 0.25rem; }
+    .stat-pill {
+      background: #f3f4f6;
+      border-radius: 99px;
+      padding: 0.2rem 0.625rem;
+      font-size: 0.75rem;
+      color: #374151;
+    }
+    .btn-reload {
+      margin-left: auto;
+      padding: 0.3rem 0.75rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      background: white;
+      font-size: 0.8125rem;
+      cursor: pointer;
+      color: #6b7280;
+      font-family: inherit;
+    }
+    .btn-reload:hover { background: #f9fafb; }
+
+    /* ── Legend ───────────────────────────────────────────────────────────── */
+    .legend {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .legend-item { display: flex; align-items: center; gap: 0.375rem; font-size: 0.8125rem; color: #374151; }
+    .ls { width: 13px; height: 13px; border-radius: 3px; flex-shrink: 0; }
+    .ls.direct   { background: #16a34a; }
+    .ls.indirect { background: #86efac; border: 1px solid #4ade80; }
+    .ls.close    { background: #f97316; }
+    .ls.wrong    { background: #dc2626; }
+
+    /* ── Task section ─────────────────────────────────────────────────────── */
+    .task-sec {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      overflow: hidden;
+    }
+    .task-sec > summary {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.875rem 1.125rem;
+      cursor: pointer;
+      user-select: none;
+      list-style: none;
+    }
+    .task-sec > summary::-webkit-details-marker { display: none; }
+    .task-sec[open] > summary { border-bottom: 1px solid #e5e7eb; background: #fafafa; }
+
+    .ts-arrow {
+      color: #9ca3af;
+      font-size: 0.65rem;
+      transition: transform .18s;
+      flex-shrink: 0;
+    }
+    .task-sec[open] .ts-arrow { transform: rotate(90deg); }
+
+    .ts-badge {
+      background: #eff6ff;
+      color: #1d4ed8;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      font-family: 'SF Mono', ui-monospace, monospace;
+      flex-shrink: 0;
+    }
+    .ts-scenario { flex: 1; font-size: 0.875rem; color: #374151; }
+    .ts-right {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      flex-shrink: 0;
+    }
+    .ts-acc { font-size: 0.8125rem; font-weight: 700; color: #374151; }
+    .ts-n   { font-size: 0.75rem; color: #9ca3af; }
+
+    .mini-bar {
+      width: 72px;
+      height: 7px;
+      border-radius: 4px;
+      display: flex;
+      overflow: hidden;
+      background: #f3f4f6;
+    }
+    .mb { height: 100%; }
+    .mb.direct   { background: #16a34a; }
+    .mb.indirect { background: #86efac; }
+    .mb.close    { background: #f97316; }
+    .mb.wrong    { background: #dc2626; }
+
+    /* ── Task body ────────────────────────────────────────────────────────── */
+    .task-body { padding: 1rem 1.25rem 1.25rem; }
+
+    .task-row1 {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 0.875rem;
+      flex-wrap: wrap;
+    }
+    .chips { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.3rem 0.625rem;
+      border-radius: 6px;
+      font-size: 0.8125rem;
+    }
+    .chip strong { font-weight: 700; }
+    .chip span   { opacity: 0.75; font-size: 0.75rem; }
+    .chip.direct   { background: #dcfce7; color: #15803d; }
+    .chip.indirect { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    .chip.close    { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+    .chip.wrong    { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+
+    .correct-notes { display: flex; flex-direction: column; gap: 0.3rem; }
+    .correct-note {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 6px;
+      padding: 0.3rem 0.625rem;
+      font-size: 0.8125rem;
+      color: #15803d;
+    }
+    .cn-lang {
+      background: #16a34a;
+      color: white;
+      border-radius: 3px;
+      padding: 0 0.3rem;
+      font-size: 0.65rem;
+      font-weight: 700;
+      font-family: monospace;
+    }
+
+    .task-stats-row {
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 0.875rem;
+      font-size: 0.8125rem;
+      color: #6b7280;
+    }
+    .task-stats-row strong { color: #374151; }
+
+    .tree-hdr {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: #9ca3af;
+      margin-bottom: 0.625rem;
+    }
+
+    /* ── Path tree ────────────────────────────────────────────────────────── */
+    .path-tree { font-size: 0.875rem; }
+
+    /* Branch nodes (details) */
+    .pn {
+      margin: 1px 0;
+    }
+    .pn > summary {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.3rem 0.4rem;
+      border-radius: 5px;
+      cursor: pointer;
+      list-style: none;
+    }
+    .pn > summary::-webkit-details-marker { display: none; }
+    .pn > summary:hover { background: #f9fafb; }
+    .pn[open] > summary { background: #f3f4f6; }
+
+    .pnt {
+      font-size: 0.6rem;
+      color: #d1d5db;
+      width: 10px;
+      flex-shrink: 0;
+      transition: transform .15s;
+    }
+    .pn[open] > summary .pnt { transform: rotate(90deg); color: #9ca3af; }
+
+    /* Leaf nodes (div) */
+    .pnleaf {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.3rem 0.4rem;
+      border-radius: 5px;
+      margin: 1px 0;
+    }
+    .pnleaf:hover { background: #f9fafb; }
+    .pnleaf .pnt { opacity: 0; }
+
+    /* Children container */
+    .pnch {
+      padding-left: 1.125rem;
+      margin-left: 0.5rem;
+      border-left: 2px solid #e5e7eb;
+    }
+
+    /* Event type icon */
+    .ni {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.55rem;
+      flex-shrink: 0;
+      font-weight: 700;
+    }
+    .ni-open    { background: #dbeafe; color: #1d4ed8; }
+    .ni-sel     { background: #dcfce7; color: #16a34a; }
+    .ni-wrongsel { background: #fee2e2; color: #dc2626; }
+
+    .pnlabel {
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pncount {
+      font-size: 0.75rem;
+      color: #9ca3af;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    /* Outcome bar inside each node */
+    .obar {
+      height: 5px;
+      border-radius: 3px;
+      display: flex;
+      overflow: hidden;
+      background: #f3f4f6;
+      flex-shrink: 0;
+    }
+    .bs          { height: 100%; }
+    .bs.direct   { background: #16a34a; }
+    .bs.indirect { background: #86efac; }
+    .bs.close    { background: #f97316; }
+    .bs.wrong    { background: #dc2626; }
+
+    /* Correct/wrong badge on final leaf nodes */
+    .cbadge {
+      padding: 0.1rem 0.35rem;
+      border-radius: 3px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .cbadge.ok    { background: #dcfce7; color: #16a34a; }
+    .cbadge.no    { background: #fee2e2; color: #b91c1c; }
+    .cbadge.mixed { background: #fff7ed; color: #c2410c; }
+
+    .no-data { color: #9ca3af; font-style: italic; font-size: 0.8125rem; padding: 0.5rem; }
+  </style>
+</head>
+<body>
+
+<header class="app-header">
+  <div>
+    <h1>Tree Test — Path Analysis</h1>
+    <p>Upload your merged CSV to explore navigation paths per task scenario</p>
+  </div>
+</header>
+
+<div id="upload-area">
+  <div class="drop-zone" id="drop-zone">
+    <div class="dz-icon">📂</div>
+    <h2>Drop your merged CSV here</h2>
+    <p>
+      Stack all participant CSV files into one (row by row), then upload it here.<br>
+      All processing is in-browser — no data leaves your computer.
+    </p>
+    <button class="btn-upload" onclick="document.getElementById('file-input').click()">Choose file</button>
+    <input type="file" id="file-input" accept=".csv">
+  </div>
+</div>
+
+<div id="analysis-area">
+  <div class="analysis-bar">
+    <span class="analysis-bar-title">Path Analysis</span>
+    <span class="stat-pill" id="stat-p"></span>
+    <span class="stat-pill" id="stat-t"></span>
+    <span class="stat-pill" id="stat-l"></span>
+    <button class="btn-reload" onclick="resetToUpload()">↩ Load another file</button>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="ls direct"></div>   Direct correct — right branch, straight to answer</div>
+    <div class="legend-item"><div class="ls indirect"></div> Indirect correct — explored other paths first</div>
+    <div class="legend-item"><div class="ls close"></div>    Close but wrong — reached correct area, wrong final pick</div>
+    <div class="legend-item"><div class="ls wrong"></div>    Completely wrong — never explored the correct area</div>
+  </div>
+
+  <div id="tasks-container"></div>
+</div>
+
+<script>
+'use strict';
+
+/* ── Utilities ────────────────────────────────────────────────────────────── */
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function pct(n, d) { return d ? Math.round(n / d * 100) + '%' : '0%'; }
+
+/* ── CSV parser ───────────────────────────────────────────────────────────── */
+function parseCSV(text) {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // strip UTF-8 BOM
+  var lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+
+  function parseLine(line) {
+    var cells = [], cur = '', q = false;
+    for (var i = 0; i < line.length; i++) {
+      var c = line[i];
+      if (q) {
+        if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (c === '"') { q = false; }
+        else { cur += c; }
+      } else if (c === '"') { q = true; }
+      else if (c === ',') { cells.push(cur); cur = ''; }
+      else { cur += c; }
+    }
+    cells.push(cur);
+    return cells;
+  }
+
+  var headers = parseLine(lines[0]);
+  var rows = [];
+  for (var i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    var cells = parseLine(lines[i]);
+    var row = {};
+    headers.forEach(function (h, j) { row[h.trim()] = (cells[j] || '').trim(); });
+    rows.push(row);
+  }
+  return rows;
+}
+
+/* ── Event parsing ────────────────────────────────────────────────────────── */
+function parseEvents(evtStr, labStr) {
+  if (!evtStr || !evtStr.trim()) return [];
+  var evts = evtStr.split(' | ');
+  var labs = labStr ? labStr.split(' | ') : [];
+  return evts.map(function (e, i) {
+    var ci = e.indexOf(':');
+    var type = e.slice(0, ci).toLowerCase();
+    var nodeId = e.slice(ci + 1);
+    var raw = (labs[i] || '').replace(/^(OPEN|SELECT):/, '');
+    var parts = raw.split(' > ');
+    return { type: type, nodeId: nodeId, label: parts[parts.length - 1] || nodeId, fullPath: raw };
+  });
+}
+
+/* ── Correct-answer inference ─────────────────────────────────────────────── */
+function getCorrectInfo(taskRows) {
+  /* Returns { lang: { tier1Label, tier1NodeId, correctPath } } */
+  var info = {};
+  taskRows.filter(function (r) { return r.correct === 'true'; }).forEach(function (r) {
+    var lang = r.language || '?';
+    if (info[lang]) return;
+    var path = r.final_answer_path || '';
+    var tier1Label = path.split(' > ')[0] || '';
+    var tier1NodeId = '';
+    parseEvents(r.path_events, r.path_labels).forEach(function (e) {
+      if (e.type === 'open' && e.fullPath === tier1Label && !tier1NodeId) tier1NodeId = e.nodeId;
+    });
+    info[lang] = { tier1Label: tier1Label, tier1NodeId: tier1NodeId, correctPath: path };
+  });
+  return info;
+}
+
+/* ── Outcome classification ───────────────────────────────────────────────── */
+function classify(row, correctInfo) {
+  var lang = row.language || '?';
+  var ci   = correctInfo[lang];
+  var isCorrect        = row.correct === 'true';
+  var firstClickOk     = row.first_click_correct === 'true';
+  var nBt              = parseInt(row.n_backtrack || '0') || 0;
+  var events           = parseEvents(row.path_events, row.path_labels);
+
+  if (isCorrect) {
+    if (nBt > 0) return 'indirect';
+    if (!ci) return 'direct';
+    /* Direct: first opened branch matches the correct tier-1 (or no wrong branches at all) */
+    var openEvents = events.filter(function (e) { return e.type === 'open'; });
+    var allOnPath = openEvents.every(function (e) {
+      return !ci.correctPath || ci.correctPath.startsWith(e.fullPath) ||
+             (ci.tier1NodeId && e.nodeId === ci.tier1NodeId);
+    });
+    return allOnPath ? 'direct' : 'indirect';
+  }
+
+  if (firstClickOk) return 'close';
+
+  if (ci) {
+    var exploredCorrect = events.some(function (e) {
+      if (e.type !== 'open') return false;
+      return (ci.tier1NodeId && e.nodeId === ci.tier1NodeId) ||
+             e.fullPath === ci.tier1Label ||
+             (ci.tier1Label && e.fullPath.indexOf(ci.tier1Label) === 0);
+    });
+    if (exploredCorrect) return 'close';
+  }
+
+  return 'wrong';
+}
+
+/* ── Path trie ────────────────────────────────────────────────────────────── */
+function mkNode(type, nodeId, label) {
+  return {
+    type: type, nodeId: nodeId, label: label,
+    count: 0,
+    outcomes: { direct: 0, indirect: 0, close: 0, wrong: 0 },
+    children: {},
+    pids: []
+  };
+}
+
+function buildTrie(participants) {
+  var root = mkNode('root', 'root', 'Start');
+  root.count = participants.length;
+  participants.forEach(function (p) { root.outcomes[p.outcome]++; });
+
+  participants.forEach(function (p) {
+    var node = root;
+    p.events.forEach(function (e) {
+      var k = e.type + ':' + e.nodeId;
+      if (!node.children[k]) node.children[k] = mkNode(e.type, e.nodeId, e.label);
+      node = node.children[k];
+      node.count++;
+      node.outcomes[p.outcome]++;
+      node.pids.push(p.id);
+    });
+  });
+  return root;
+}
+
+/* ── Rendering helpers ────────────────────────────────────────────────────── */
+function obar(outcomes, total) {
+  if (!total) return '';
+  function s(cls, n) {
+    return n ? '<div class="bs ' + cls + '" style="width:' + (n / total * 100).toFixed(1) + '%"></div>' : '';
+  }
+  return (
+    '<div class="obar" style="width:80px">' +
+      s('direct',   outcomes.direct) +
+      s('indirect', outcomes.indirect) +
+      s('close',    outcomes.close) +
+      s('wrong',    outcomes.wrong) +
+    '</div>'
+  );
+}
+
+function renderNode(node, totalTask, depth) {
+  var children = Object.values(node.children).sort(function (a, b) { return b.count - a.count; });
+  var hasChildren = children.length > 0;
+  var isOpen = node.type === 'open';
+  var isMidSelect = node.type === 'select' && hasChildren; /* intermediate wrong selection */
+
+  var iconTxt = isOpen ? '▶' : (isMidSelect ? '↩' : '●');
+  var iconCls = 'ni ' + (isOpen ? 'ni-open' : (isMidSelect ? 'ni-wrongsel' : 'ni-sel'));
+
+  var inner =
+    '<span class="pnt">' + (hasChildren ? '▶' : '') + '</span>' +
+    '<span class="' + iconCls + '">' + iconTxt + '</span>' +
+    '<span class="pnlabel" title="' + esc(node.label) + '">' + esc(node.label) + '</span>' +
+    '<span class="pncount">' + node.count + ' (' + pct(node.count, totalTask) + ')</span>' +
+    obar(node.outcomes, node.count);
+
+  if (!hasChildren) {
+    var nOk  = node.outcomes.direct + node.outcomes.indirect;
+    var badge = nOk === node.count ? '<span class="cbadge ok">✓ correct</span>'
+              : nOk === 0          ? '<span class="cbadge no">✗ wrong</span>'
+                                   : '<span class="cbadge mixed">~ mixed</span>';
+    return '<div class="pnleaf">' + inner + badge + '</div>';
+  }
+
+  var autoOpen = depth <= 1 ? ' open' : '';
+  return (
+    '<details class="pn"' + autoOpen + '>' +
+      '<summary>' + inner + '</summary>' +
+      '<div class="pnch">' +
+        children.map(function (c) { return renderNode(c, totalTask, depth + 1); }).join('') +
+      '</div>' +
+    '</details>'
+  );
+}
+
+/* ── Task section ─────────────────────────────────────────────────────────── */
+function renderTask(taskId, rows) {
+  var total = rows.length;
+  if (!total) return '';
+
+  var scenario = rows[0].scenario_text || taskId;
+  var scenarioShort = scenario.length > 110 ? scenario.slice(0, 110) + '…' : scenario;
+
+  var correctInfo = getCorrectInfo(rows);
+
+  var participants = rows.map(function (r) {
+    return {
+      id:      r.participant_id,
+      outcome: classify(r, correctInfo),
+      events:  parseEvents(r.path_events, r.path_labels),
+      lang:    r.language
+    };
+  });
+
+  var outs = { direct: 0, indirect: 0, close: 0, wrong: 0 };
+  participants.forEach(function (p) { outs[p.outcome]++; });
+
+  var totalCorrect = outs.direct + outs.indirect;
+  var accuracy = pct(totalCorrect, total);
+
+  /* Stats */
+  var times = rows
+    .map(function (r) { return parseFloat(r.time_seconds); })
+    .filter(function (t) { return !isNaN(t); })
+    .sort(function (a, b) { return a - b; });
+  var medianTime = times.length ? Math.round(times[Math.floor(times.length / 2)]) + 's' : '—';
+
+  var confs = rows
+    .map(function (r) { return parseFloat(r.confidence); })
+    .filter(function (c) { return !isNaN(c); });
+  var meanConf = confs.length
+    ? (confs.reduce(function (a, b) { return a + b; }, 0) / confs.length).toFixed(1) + ' / 5'
+    : '—';
+
+  /* Mini bar */
+  function ms(cls, n) {
+    return n ? '<div class="mb ' + cls + '" style="width:' + pct(n, total) + '"></div>' : '';
+  }
+  var miniBar = '<div class="mini-bar">' +
+    ms('direct', outs.direct) + ms('indirect', outs.indirect) +
+    ms('close',  outs.close)  + ms('wrong',    outs.wrong) +
+  '</div>';
+
+  /* Outcome chips */
+  function chip(cls, label, n) {
+    if (!n) return '';
+    return '<div class="chip ' + cls + '"><strong>' + n + '</strong> <span>(' + pct(n, total) + ')</span> ' + label + '</div>';
+  }
+
+  /* Correct answer note per language */
+  var correctNotes = Object.keys(correctInfo).map(function (lang) {
+    var ci = correctInfo[lang];
+    return ci && ci.correctPath
+      ? '<div class="correct-note"><span class="cn-lang">' + lang.toUpperCase() + '</span>✓ ' + esc(ci.correctPath) + '</div>'
+      : '';
+  }).join('');
+
+  /* Path trie */
+  var trie = buildTrie(participants);
+  var treeHtml = Object.values(trie.children)
+    .sort(function (a, b) { return b.count - a.count; })
+    .map(function (c) { return renderNode(c, total, 0); })
+    .join('');
+
+  return (
+    '<details class="task-sec">' +
+      '<summary>' +
+        '<span class="ts-arrow">▶</span>' +
+        '<span class="ts-badge">' + esc(taskId) + '</span>' +
+        '<span class="ts-scenario">' + esc(scenarioShort) + '</span>' +
+        '<div class="ts-right">' +
+          '<span class="ts-acc">' + accuracy + ' correct</span>' +
+          miniBar +
+          '<span class="ts-n">N=' + total + '</span>' +
+        '</div>' +
+      '</summary>' +
+      '<div class="task-body">' +
+        '<div class="task-row1">' +
+          '<div class="chips">' +
+            chip('direct',   'Direct correct',    outs.direct) +
+            chip('indirect', 'Indirect correct',  outs.indirect) +
+            chip('close',    'Close but wrong',   outs.close) +
+            chip('wrong',    'Completely wrong',  outs.wrong) +
+          '</div>' +
+          '<div class="correct-notes">' + correctNotes + '</div>' +
+        '</div>' +
+        '<div class="task-stats-row">' +
+          '<span>⏱ Median time: <strong>' + medianTime + '</strong></span>' +
+          '<span>💬 Mean confidence: <strong>' + meanConf + '</strong></span>' +
+        '</div>' +
+        '<div class="tree-hdr">Navigation path explorer</div>' +
+        '<div class="path-tree">' +
+          (treeHtml || '<div class="no-data">No path data available.</div>') +
+        '</div>' +
+      '</div>' +
+    '</details>'
+  );
+}
+
+/* ── Main ─────────────────────────────────────────────────────────────────── */
+function processCSV(text) {
+  var all  = parseCSV(text);
+  var rows = all.filter(function (r) {
+    return r.task_id && r.task_id !== 'pre_test' && r.task_id !== 'post_study';
+  });
+
+  if (!rows.length) {
+    alert('No task rows found. Make sure the CSV uses the tree-test export format (columns: task_id, path_events, path_labels, correct, …).');
+    return;
+  }
+
+  /* Group by task (preserve first-seen order) */
+  var taskMap = {}, taskOrder = [];
+  rows.forEach(function (r) {
+    var tid = r.task_id;
+    if (!taskMap[tid]) { taskMap[tid] = []; taskOrder.push(tid); }
+    taskMap[tid].push(r);
+  });
+
+  /* Stats */
+  var pids = {}, langs = {};
+  rows.forEach(function (r) { pids[r.participant_id] = true; if (r.language) langs[r.language] = true; });
+  var nP = Object.keys(pids).length;
+
+  document.getElementById('stat-p').textContent = nP + ' participant' + (nP !== 1 ? 's' : '');
+  document.getElementById('stat-t').textContent = taskOrder.length + ' task' + (taskOrder.length !== 1 ? 's' : '');
+  document.getElementById('stat-l').textContent = Object.keys(langs).join('+').toUpperCase() || '—';
+
+  document.getElementById('tasks-container').innerHTML =
+    taskOrder.map(function (tid) { return renderTask(tid, taskMap[tid]); }).join('');
+
+  document.getElementById('upload-area').style.display  = 'none';
+  document.getElementById('analysis-area').style.display = 'block';
+}
+
+function resetToUpload() {
+  document.getElementById('upload-area').style.display   = 'block';
+  document.getElementById('analysis-area').style.display = 'none';
+  document.getElementById('tasks-container').innerHTML    = '';
+  document.getElementById('file-input').value             = '';
+}
+
+/* ── File I/O ─────────────────────────────────────────────────────────────── */
+var dropZone  = document.getElementById('drop-zone');
+var fileInput = document.getElementById('file-input');
+
+fileInput.addEventListener('change', function () {
+  var f = fileInput.files[0];
+  if (!f) return;
+  var r = new FileReader();
+  r.onload = function (e) { processCSV(e.target.result); };
+  r.readAsText(f, 'UTF-8');
+});
+
+dropZone.addEventListener('dragover',  function (e) { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', function ()  { dropZone.classList.remove('drag-over'); });
+dropZone.addEventListener('drop',      function (e) {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  var f = e.dataTransfer.files[0];
+  if (!f) return;
+  var r = new FileReader();
+  r.onload = function (ev) { processCSV(ev.target.result); };
+  r.readAsText(f, 'UTF-8');
+});
+</script>
+</body>
+</html>
