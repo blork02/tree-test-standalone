@@ -151,7 +151,7 @@
       '<div class="instructions-screen">' +
         '<div class="instructions-card">' +
           '<h2>' + esc(t('welcomeTitle')) + '</h2>' +
-          '<p class="welcome-body">' + esc(t('welcomeBody')) + '</p>' +
+          '<div class="welcome-body">' + t('welcomeBody') + '</div>' +
           '<button class="btn-primary" onclick="treeApp.goToPretest()">' +
             esc(t('btnWelcomeNext')) +
           '</button>' +
