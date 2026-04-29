@@ -79,8 +79,20 @@
       font-size: 0.75rem;
       color: #374151;
     }
+    .bar-actions { margin-left: auto; display: flex; gap: 0.5rem; }
+    .btn-export {
+      padding: 0.3rem 0.75rem;
+      border: 1px solid #1d4ed8;
+      border-radius: 6px;
+      background: white;
+      font-size: 0.8125rem;
+      cursor: pointer;
+      color: #1d4ed8;
+      font-family: inherit;
+      font-weight: 600;
+    }
+    .btn-export:hover { background: #eff6ff; }
     .btn-reload {
-      margin-left: auto;
       padding: 0.3rem 0.75rem;
       border: 1px solid #e5e7eb;
       border-radius: 6px;
@@ -190,10 +202,11 @@
     }
     .chip strong { font-weight: 700; }
     .chip span   { opacity: 0.75; font-size: 0.75rem; }
-    .chip.direct   { background: #dcfce7; color: #15803d; }
-    .chip.indirect { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
-    .chip.close    { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
-    .chip.wrong    { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .chip.direct        { background: #dcfce7; color: #15803d; }
+    .chip.indirect      { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    .chip.close         { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+    .chip.wrong         { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .chip.catastrophe   { background: #fdf4ff; color: #7e22ce; border: 1px solid #e9d5ff; }
 
     .correct-notes { display: flex; flex-direction: column; gap: 0.3rem; }
     .correct-note {
@@ -223,6 +236,7 @@
       margin-bottom: 0.875rem;
       font-size: 0.8125rem;
       color: #6b7280;
+      flex-wrap: wrap;
     }
     .task-stats-row strong { color: #374151; }
 
@@ -238,10 +252,7 @@
     /* ── Path tree ────────────────────────────────────────────────────────── */
     .path-tree { font-size: 0.875rem; }
 
-    /* Branch nodes (details) */
-    .pn {
-      margin: 1px 0;
-    }
+    .pn { margin: 1px 0; }
     .pn > summary {
       display: flex;
       align-items: center;
@@ -264,7 +275,6 @@
     }
     .pn[open] > summary .pnt { transform: rotate(90deg); color: #9ca3af; }
 
-    /* Leaf nodes (div) */
     .pnleaf {
       display: flex;
       align-items: center;
@@ -276,14 +286,12 @@
     .pnleaf:hover { background: #f9fafb; }
     .pnleaf .pnt { opacity: 0; }
 
-    /* Children container */
     .pnch {
       padding-left: 1.125rem;
       margin-left: 0.5rem;
       border-left: 2px solid #e5e7eb;
     }
 
-    /* Event type icon */
     .ni {
       width: 18px;
       height: 18px;
@@ -295,8 +303,8 @@
       flex-shrink: 0;
       font-weight: 700;
     }
-    .ni-open    { background: #dbeafe; color: #1d4ed8; }
-    .ni-sel     { background: #dcfce7; color: #16a34a; }
+    .ni-open     { background: #dbeafe; color: #1d4ed8; }
+    .ni-sel      { background: #dcfce7; color: #16a34a; }
     .ni-wrongsel { background: #fee2e2; color: #dc2626; }
 
     .pnlabel {
@@ -313,7 +321,6 @@
       white-space: nowrap;
     }
 
-    /* Outcome bar inside each node */
     .obar {
       height: 5px;
       border-radius: 3px;
@@ -328,7 +335,6 @@
     .bs.close    { background: #f97316; }
     .bs.wrong    { background: #dc2626; }
 
-    /* Correct/wrong badge on final leaf nodes */
     .cbadge {
       padding: 0.1rem 0.35rem;
       border-radius: 3px;
@@ -341,6 +347,23 @@
     .cbadge.mixed { background: #fff7ed; color: #c2410c; }
 
     .no-data { color: #9ca3af; font-style: italic; font-size: 0.8125rem; padding: 0.5rem; }
+
+    /* ── Copy PNG button ──────────────────────────────────────────────────── */
+    .btn-copy-png {
+      padding: 0.1rem 0.45rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      background: white;
+      font-size: 0.65rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: #6b7280;
+      font-family: inherit;
+      text-transform: none;
+      letter-spacing: 0;
+      vertical-align: middle;
+    }
+    .btn-copy-png:hover { background: #f9fafb; color: #374151; border-color: #d1d5db; }
   </style>
 </head>
 <body>
@@ -371,7 +394,10 @@
     <span class="stat-pill" id="stat-p"></span>
     <span class="stat-pill" id="stat-t"></span>
     <span class="stat-pill" id="stat-l"></span>
-    <button class="btn-reload" onclick="resetToUpload()">↩ Load another file</button>
+    <div class="bar-actions">
+      <button class="btn-export" onclick="exportReport()">↓ Export Report</button>
+      <button class="btn-reload" onclick="resetToUpload()">↩ Load another file</button>
+    </div>
   </div>
 
   <div class="legend">
@@ -387,6 +413,10 @@
 <script>
 'use strict';
 
+var taskDataStore    = {};
+var allRows          = [];
+var currentTaskOrder = [];
+
 /* ── Utilities ────────────────────────────────────────────────────────────── */
 function esc(s) {
   return String(s == null ? '' : s)
@@ -396,7 +426,7 @@ function pct(n, d) { return d ? Math.round(n / d * 100) + '%' : '0%'; }
 
 /* ── CSV parser ───────────────────────────────────────────────────────────── */
 function parseCSV(text) {
-  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // strip UTF-8 BOM
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
   var lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
 
   function parseLine(line) {
@@ -444,7 +474,6 @@ function parseEvents(evtStr, labStr) {
 
 /* ── Correct-answer inference ─────────────────────────────────────────────── */
 function getCorrectInfo(taskRows) {
-  /* Returns { lang: { tier1Label, tier1NodeId, correctPath } } */
   var info = {};
   taskRows.filter(function (r) { return r.correct === 'true'; }).forEach(function (r) {
     var lang = r.language || '?';
@@ -464,15 +493,14 @@ function getCorrectInfo(taskRows) {
 function classify(row, correctInfo) {
   var lang = row.language || '?';
   var ci   = correctInfo[lang];
-  var isCorrect        = row.correct === 'true';
-  var firstClickOk     = row.first_click_correct === 'true';
-  var nBt              = parseInt(row.n_backtrack || '0') || 0;
-  var events           = parseEvents(row.path_events, row.path_labels);
+  var isCorrect    = row.correct === 'true';
+  var firstClickOk = row.first_click_correct === 'true';
+  var nBt          = parseInt(row.n_backtrack || '0') || 0;
+  var events       = parseEvents(row.path_events, row.path_labels);
 
   if (isCorrect) {
     if (nBt > 0) return 'indirect';
     if (!ci) return 'direct';
-    /* Direct: first opened branch matches the correct tier-1 (or no wrong branches at all) */
     var openEvents = events.filter(function (e) { return e.type === 'open'; });
     var allOnPath = openEvents.every(function (e) {
       return !ci.correctPath || ci.correctPath.startsWith(e.fullPath) ||
@@ -546,7 +574,7 @@ function renderNode(node, totalTask, depth) {
   var children = Object.values(node.children).sort(function (a, b) { return b.count - a.count; });
   var hasChildren = children.length > 0;
   var isOpen = node.type === 'open';
-  var isMidSelect = node.type === 'select' && hasChildren; /* intermediate wrong selection */
+  var isMidSelect = node.type === 'select' && hasChildren;
 
   var iconTxt = isOpen ? '▶' : (isMidSelect ? '↩' : '●');
   var iconCls = 'ni ' + (isOpen ? 'ni-open' : (isMidSelect ? 'ni-wrongsel' : 'ni-sel'));
@@ -566,9 +594,8 @@ function renderNode(node, totalTask, depth) {
     return '<div class="pnleaf">' + inner + badge + '</div>';
   }
 
-  var autoOpen = '';
   return (
-    '<details class="pn"' + autoOpen + '>' +
+    '<details class="pn">' +
       '<summary>' + inner + '</summary>' +
       '<div class="pnch">' +
         children.map(function (c) { return renderNode(c, totalTask, depth + 1); }).join('') +
@@ -578,8 +605,7 @@ function renderNode(node, totalTask, depth) {
 }
 
 /* ── First-click pie chart ────────────────────────────────────────────────── */
-function renderFirstClickPie(rows, correctInfo) {
-  /* Build frequency map: tier1Label → { label, count, isCorrect } */
+function renderFirstClickPie(rows, correctInfo, taskId) {
   var map = {};
   rows.forEach(function (r) {
     var fc = r.first_opened;
@@ -596,12 +622,17 @@ function renderFirstClickPie(rows, correctInfo) {
   var total  = slices.reduce(function (s, sl) { return s + sl.count; }, 0);
   if (!total) return '';
 
-  /* Assign colors: correct → green, wrong nodes → distinct reds */
   var wrongReds = ['#dc2626', '#b91c1c', '#ef4444', '#f87171', '#991b1b', '#fca5a5'];
   var wrongIdx  = 0;
   slices.forEach(function (sl) {
     sl.color = sl.isCorrect ? '#16a34a' : wrongReds[wrongIdx++ % wrongReds.length];
   });
+
+  /* Store slice data for PNG export */
+  if (taskId && taskDataStore[taskId]) {
+    taskDataStore[taskId].pieSlices = slices;
+    taskDataStore[taskId].pieTotal  = total;
+  }
 
   /* SVG pie */
   var R = 46, cx = 50, cy = 50;
@@ -630,7 +661,6 @@ function renderFirstClickPie(rows, correctInfo) {
 
   var svgHtml = '<svg width="100" height="100" style="flex-shrink:0">' + paths.join('') + '</svg>';
 
-  /* Legend */
   var legendHtml = slices.map(function (sl) {
     var short = sl.label.length > 30 ? sl.label.slice(0, 29) + '…' : sl.label;
     return (
@@ -644,9 +674,15 @@ function renderFirstClickPie(rows, correctInfo) {
     );
   }).join('');
 
+  var copyBtn = taskId
+    ? ' <button class="btn-copy-png" data-copy-task="' + esc(taskId) + '">Copy PNG</button>'
+    : '';
+
   return (
     '<div style="padding-top:0.875rem;border-top:1px solid #f3f4f6;margin-top:0.875rem">' +
-      '<div class="tree-hdr" style="margin-bottom:0.5rem">First opened category (first click)</div>' +
+      '<div class="tree-hdr" style="margin-bottom:0.5rem;display:flex;align-items:center;gap:0.5rem">' +
+        'First opened category (first click)' + copyBtn +
+      '</div>' +
       '<div style="display:flex;align-items:center;gap:1.25rem">' +
         svgHtml +
         '<div style="display:flex;flex-direction:column;gap:0.35rem;min-width:0">' +
@@ -657,12 +693,140 @@ function renderFirstClickPie(rows, correctInfo) {
   );
 }
 
+/* ── PNG copy for pie chart ───────────────────────────────────────────────── */
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function copyPiePNG(taskId) {
+  var data = taskDataStore[taskId];
+  if (!data || !data.pieSlices || !data.pieSlices.length) return;
+
+  var slices = data.pieSlices;
+  var total  = data.pieTotal;
+
+  var SCALE = 2;
+  var W     = 440;
+  var ROWH  = 38;
+  var HDR   = 42;
+  var PAD   = 20;
+  var H     = Math.max(180, HDR + slices.length * ROWH + PAD);
+
+  var canvas  = document.createElement('canvas');
+  canvas.width  = W * SCALE;
+  canvas.height = H * SCALE;
+  var ctx = canvas.getContext('2d');
+  ctx.scale(SCALE, SCALE);
+
+  /* White background */
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+
+  /* Section label */
+  ctx.fillStyle = '#9ca3af';
+  ctx.font = '700 9px ui-sans-serif, system-ui, sans-serif';
+  ctx.fillText('FIRST OPENED CATEGORY (FIRST CLICK)  —  ' + taskId.toUpperCase(), 16, 18);
+
+  /* Scenario subtitle */
+  var subtitle = (data.scenario || '').slice(0, 60) + ((data.scenario || '').length > 60 ? '…' : '');
+  ctx.fillStyle = '#374151';
+  ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
+  ctx.fillText(subtitle, 16, HDR - 6);
+
+  /* Pie */
+  var contentH = H - HDR;
+  var R   = Math.min(62, contentH / 2 - 8);
+  var pcx = 16 + R;
+  var pcy = HDR + contentH / 2;
+  var angle = -Math.PI / 2;
+
+  if (slices.length === 1) {
+    ctx.beginPath();
+    ctx.arc(pcx, pcy, R, 0, Math.PI * 2);
+    ctx.fillStyle = slices[0].color;
+    ctx.fill();
+  } else {
+    slices.forEach(function (sl) {
+      var portion  = sl.count / total;
+      var endAngle = angle + portion * 2 * Math.PI;
+      ctx.beginPath();
+      ctx.moveTo(pcx, pcy);
+      ctx.arc(pcx, pcy, R, angle, endAngle);
+      ctx.closePath();
+      ctx.fillStyle = sl.color;
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      angle = endAngle;
+    });
+  }
+
+  /* Legend */
+  var lx = 16 + R * 2 + 22;
+  var ly = HDR + 10;
+
+  slices.forEach(function (sl) {
+    roundRect(ctx, lx, ly, 11, 11, 2);
+    ctx.fillStyle = sl.color;
+    ctx.fill();
+
+    ctx.fillStyle = '#374151';
+    ctx.font = '12px ui-sans-serif, system-ui, sans-serif';
+    var label = sl.label.length > 28 ? sl.label.slice(0, 27) + '…' : sl.label;
+    ctx.fillText(label, lx + 16, ly + 9);
+
+    ctx.fillStyle = '#9ca3af';
+    ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
+    ctx.fillText(sl.count + ' (' + pct(sl.count, total) + ')', lx + 16, ly + 23);
+
+    ly += ROWH;
+  });
+
+  canvas.toBlob(function (blob) {
+    if (!blob) { alert('Failed to generate image.'); return; }
+    var btn = document.querySelector('[data-copy-task="' + taskId + '"]');
+
+    function downloadFallback() {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = taskId + '-first-click.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      if (btn) { btn.textContent = '✓ Saved!'; setTimeout(function () { btn.textContent = 'Copy PNG'; }, 1800); }
+    }
+
+    if (navigator.clipboard && window.ClipboardItem) {
+      navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+        .then(function () {
+          if (btn) { btn.textContent = '✓ Copied!'; setTimeout(function () { btn.textContent = 'Copy PNG'; }, 1800); }
+        })
+        .catch(function () { downloadFallback(); });
+    } else {
+      downloadFallback();
+    }
+  }, 'image/png');
+}
+
 /* ── Task section ─────────────────────────────────────────────────────────── */
 function renderTask(taskId, rows) {
   var total = rows.length;
   if (!total) return '';
 
-  var scenario = rows[0].scenario_text || taskId;
+  var scenario      = rows[0].scenario_text || taskId;
   var scenarioShort = scenario.length > 110 ? scenario.slice(0, 110) + '…' : scenario;
 
   var correctInfo = getCorrectInfo(rows);
@@ -696,6 +860,37 @@ function renderTask(taskId, rows) {
     ? (confs.reduce(function (a, b) { return a + b; }, 0) / confs.length).toFixed(1) + ' / 5'
     : '—';
 
+  /* Catastrophes: wrong final answer + high confidence (4 or 5) */
+  var catastrophes = rows.filter(function (r) {
+    return r.correct === 'false' && parseInt(r.confidence || '0') >= 4;
+  }).length;
+
+  /* First-opened frequency (for report) */
+  var foMap = {};
+  rows.forEach(function (r) {
+    var fo = r.first_opened;
+    if (!fo) return;
+    var lang = r.language || '?';
+    var ci = correctInfo && correctInfo[lang];
+    if (!foMap[fo]) foMap[fo] = { label: fo, count: 0, correct: 0, isCorrect: !!(ci && ci.tier1Label === fo) };
+    foMap[fo].count++;
+    if (r.correct === 'true') foMap[fo].correct++;
+  });
+  var firstOpenedFreq = Object.values(foMap).sort(function (a, b) { return b.count - a.count; });
+
+  /* Store data for report generation and PNG copy */
+  taskDataStore[taskId] = {
+    outs: outs,
+    total: total,
+    scenario: scenario,
+    correctInfo: correctInfo,
+    rows: rows,
+    medianTime: medianTime,
+    meanConf: meanConf,
+    catastrophes: catastrophes,
+    firstOpenedFreq: firstOpenedFreq
+  };
+
   /* Mini bar */
   function ms(cls, n) {
     return n ? '<div class="mb ' + cls + '" style="width:' + pct(n, total) + '"></div>' : '';
@@ -705,13 +900,16 @@ function renderTask(taskId, rows) {
     ms('close',  outs.close)  + ms('wrong',    outs.wrong) +
   '</div>';
 
-  /* Outcome chips */
+  /* Chips */
   function chip(cls, label, n) {
     if (!n) return '';
     return '<div class="chip ' + cls + '"><strong>' + n + '</strong> <span>(' + pct(n, total) + ')</span> ' + label + '</div>';
   }
+  var catChip = catastrophes > 0
+    ? '<div class="chip catastrophe" title="Wrong answer but confidence ≥ 4/5"><strong>' + catastrophes + '</strong> <span>(' + pct(catastrophes, total) + ')</span> catastrophe' + (catastrophes > 1 ? 's' : '') + '</div>'
+    : '';
 
-  /* Correct answer note per language */
+  /* Correct answer notes */
   var correctNotes = Object.keys(correctInfo).map(function (lang) {
     var ci = correctInfo[lang];
     return ci && ci.correctPath
@@ -725,6 +923,10 @@ function renderTask(taskId, rows) {
     .sort(function (a, b) { return b.count - a.count; })
     .map(function (c) { return renderNode(c, total, 0); })
     .join('');
+
+  var catStatHtml = catastrophes > 0
+    ? '<span style="color:#7e22ce">⚠ Catastrophes: <strong>' + catastrophes + ' / ' + total + '</strong> <span style="font-size:0.75rem">(wrong but confidence ≥ 4)</span></span>'
+    : '<span style="color:#d1d5db" title="Participants who selected the wrong answer yet rated confidence ≥ 4/5">⚠ Catastrophes: <strong>0</strong></span>';
 
   return (
     '<details class="task-sec">' +
@@ -741,18 +943,20 @@ function renderTask(taskId, rows) {
       '<div class="task-body">' +
         '<div class="task-row1">' +
           '<div class="chips">' +
-            chip('direct',   'Direct correct',    outs.direct) +
-            chip('indirect', 'Indirect correct',  outs.indirect) +
-            chip('close',    'Close but wrong',   outs.close) +
-            chip('wrong',    'Completely wrong',  outs.wrong) +
+            chip('direct',   'Direct correct',   outs.direct) +
+            chip('indirect', 'Indirect correct', outs.indirect) +
+            chip('close',    'Close but wrong',  outs.close) +
+            chip('wrong',    'Completely wrong', outs.wrong) +
+            catChip +
           '</div>' +
           '<div class="correct-notes">' + correctNotes + '</div>' +
         '</div>' +
         '<div class="task-stats-row">' +
           '<span>⏱ Median time: <strong>' + medianTime + '</strong></span>' +
           '<span>💬 Mean confidence: <strong>' + meanConf + '</strong></span>' +
+          catStatHtml +
         '</div>' +
-        renderFirstClickPie(rows, correctInfo) +
+        renderFirstClickPie(rows, correctInfo, taskId) +
         '<div class="tree-hdr" style="margin-top:1rem">Navigation path explorer</div>' +
         '<div class="path-tree">' +
           (treeHtml || '<div class="no-data">No path data available.</div>') +
@@ -762,9 +966,221 @@ function renderTask(taskId, rows) {
   );
 }
 
+/* ── Report generation ────────────────────────────────────────────────────── */
+function generateReport() {
+  var lines   = [];
+  var dateStr = new Date().toISOString().slice(0, 10);
+  var nP = document.getElementById('stat-p').textContent;
+  var nT = document.getElementById('stat-t').textContent;
+  var nL = document.getElementById('stat-l').textContent;
+
+  lines.push('---');
+  lines.push('type: tree-test-analysis');
+  lines.push('generated: ' + dateStr);
+  lines.push('participants: "' + nP + '"');
+  lines.push('tasks: "' + nT + '"');
+  lines.push('languages: ' + nL);
+  lines.push('---');
+  lines.push('');
+  lines.push('# Tree Test — Analysis Report');
+  lines.push('');
+  lines.push('**' + nP + ' | ' + nT + ' | Languages: ' + nL + '**');
+  lines.push('');
+
+  /* 1. Overview table */
+  lines.push('## 1. Overview');
+  lines.push('');
+  lines.push('| task_id | N | % correct | % first-click correct | Median time | Mean confidence | Catastrophes |');
+  lines.push('|---|---|---|---|---|---|---|');
+
+  currentTaskOrder.forEach(function (tid) {
+    var d = taskDataStore[tid];
+    if (!d) return;
+    var nCorrect = d.outs.direct + d.outs.indirect;
+    var nFirstOk = d.rows.filter(function (r) { return r.first_click_correct === 'true'; }).length;
+    lines.push('| ' + tid +
+      ' | ' + d.total +
+      ' | ' + pct(nCorrect, d.total) +
+      ' | ' + pct(nFirstOk, d.total) +
+      ' | ' + d.medianTime +
+      ' | ' + d.meanConf +
+      ' | ' + d.catastrophes + ' (' + pct(d.catastrophes, d.total) + ')' +
+      ' |');
+  });
+  lines.push('');
+
+  /* 2. Per-task path flow */
+  lines.push('## 2. Path Flow — Per Task');
+  lines.push('');
+
+  currentTaskOrder.forEach(function (tid) {
+    var d = taskDataStore[tid];
+    if (!d) return;
+
+    var nCorrect = d.outs.direct + d.outs.indirect;
+    var nFirstOk = d.rows.filter(function (r) { return r.first_click_correct === 'true'; }).length;
+    var nBt      = d.rows.filter(function (r) { return parseInt(r.n_backtrack || '0') > 0; }).length;
+    var scenShort = d.scenario.length > 80 ? d.scenario.slice(0, 80) + '…' : d.scenario;
+
+    lines.push('### TASK ' + tid + ' — "' + scenShort + '"');
+    lines.push('');
+    lines.push(
+      'N=' + d.total +
+      ' | Correct=' + nCorrect + '/' + d.total + ' (' + pct(nCorrect, d.total) + ')' +
+      ' | First-click correct=' + nFirstOk + '/' + d.total + ' (' + pct(nFirstOk, d.total) + ')' +
+      ' | Median time=' + d.medianTime +
+      ' | Mean confidence=' + d.meanConf
+    );
+    lines.push('');
+
+    Object.keys(d.correctInfo).forEach(function (lang) {
+      var ci = d.correctInfo[lang];
+      if (ci && ci.correctPath) {
+        lines.push('**Correct answer (' + lang.toUpperCase() + '):** ' + ci.correctPath);
+      }
+    });
+    lines.push('');
+
+    lines.push('**Outcomes:**');
+    lines.push('- Direct correct: ' + d.outs.direct + ' (' + pct(d.outs.direct, d.total) + ')');
+    lines.push('- Indirect correct: ' + d.outs.indirect + ' (' + pct(d.outs.indirect, d.total) + ')');
+    lines.push('- Close but wrong: ' + d.outs.close + ' (' + pct(d.outs.close, d.total) + ')');
+    lines.push('- Completely wrong: ' + d.outs.wrong + ' (' + pct(d.outs.wrong, d.total) + ')');
+    lines.push('- **Catastrophes** (wrong + confidence ≥4/5): ' + d.catastrophes + ' (' + pct(d.catastrophes, d.total) + ')');
+    lines.push('');
+
+    lines.push('**FIRST OPENED (which Tier-1 branch did participants explore first?):**');
+    d.firstOpenedFreq.forEach(function (fo) {
+      lines.push('  ' + fo.label + '  N=' + fo.count + ' (' + pct(fo.count, d.total) + ')  →  correct: ' + fo.correct + '/' + fo.count);
+    });
+    var noOpen = d.rows.filter(function (r) { return !r.first_opened; }).length;
+    if (noOpen) lines.push('  (no branch opened)  N=' + noOpen + ' (' + pct(noOpen, d.total) + ')');
+    lines.push('');
+
+    var wrongRows = d.rows.filter(function (r) { return r.correct === 'false'; });
+    var wrongMap  = {};
+    wrongRows.forEach(function (r) {
+      var k = r.final_answer_path || r.final_answer || '(unknown)';
+      wrongMap[k] = (wrongMap[k] || 0) + 1;
+    });
+    var wrongList = Object.keys(wrongMap).sort(function (a, b) { return wrongMap[b] - wrongMap[a]; });
+    if (wrongList.length) {
+      lines.push('**WRONG ANSWERS (final_answer_path, by frequency):**');
+      wrongList.forEach(function (k) { lines.push('  ' + k + '  N=' + wrongMap[k]); });
+      lines.push('');
+    }
+
+    lines.push('**BACKTRACK rate:** ' + pct(nBt, d.total) + ' of participants changed selection at least once (n_backtrack > 0)');
+    lines.push('');
+
+    if (d.catastrophes > 0) {
+      var catRows = d.rows.filter(function (r) {
+        return r.correct === 'false' && parseInt(r.confidence || '0') >= 4;
+      });
+      lines.push('**CATASTROPHES — wrong yet confident (confidence ≥4):**');
+      catRows.forEach(function (r) {
+        lines.push('  [' + r.participant_id + ' / ' + (r.language || '?').toUpperCase() + ']' +
+          '  Selected: ' + (r.final_answer_path || r.final_answer || '?') +
+          '  — confidence: ' + r.confidence + '/5');
+      });
+      lines.push('');
+    }
+
+    var comments = d.rows.filter(function (r) { return r.comment && r.comment.trim(); });
+    if (comments.length) {
+      lines.push('**Participant comments:**');
+      comments.forEach(function (r) {
+        lines.push('  [' + r.participant_id + '] ' + r.comment.trim());
+      });
+      lines.push('');
+    }
+
+    lines.push('---');
+    lines.push('');
+  });
+
+  /* 3. Post-study analysis */
+  var postRows = allRows.filter(function (r) { return r.task_id === 'post_study'; });
+  if (postRows.length) {
+    lines.push('## 3. Post-study Analysis');
+    lines.push('');
+
+    var easeMap = {}, easeSum = 0, easeCount = 0;
+    postRows.forEach(function (r) {
+      var e = r.ease;
+      if (e) { easeMap[e] = (easeMap[e] || 0) + 1; easeSum += parseFloat(e) || 0; easeCount++; }
+    });
+    lines.push('**Ease rating distribution (1–5):**');
+    [1, 2, 3, 4, 5].forEach(function (v) {
+      if (easeMap[v]) lines.push('- ' + v + ': ' + easeMap[v] + ' (' + pct(easeMap[v], postRows.length) + ')');
+    });
+    if (easeCount) lines.push('Mean: ' + (easeSum / easeCount).toFixed(1) + ' / 5');
+    lines.push('');
+
+    var catMap = {};
+    postRows.forEach(function (r) {
+      if (!r.structure_words) return;
+      r.structure_words.split('|').forEach(function (c) {
+        var t = c.trim();
+        if (t) catMap[t] = (catMap[t] || 0) + 1;
+      });
+    });
+    var catList = Object.keys(catMap).sort(function (a, b) { return catMap[b] - catMap[a]; });
+    if (catList.length) {
+      lines.push('**Hardest categories (by mention count):**');
+      catList.forEach(function (c) { lines.push('- ' + c + ': ' + catMap[c]); });
+      lines.push('');
+    }
+
+    var otherComments = postRows.filter(function (r) { return r.other_comments && r.other_comments.trim(); });
+    if (otherComments.length) {
+      lines.push('**Open comments:**');
+      otherComments.forEach(function (r) {
+        lines.push('- [' + r.participant_id + '] ' + r.other_comments.trim());
+      });
+      lines.push('');
+    }
+  }
+
+  /* 4. Pre-test profile */
+  var preRows = allRows.filter(function (r) { return r.task_id === 'pre_test'; });
+  if (preRows.length) {
+    lines.push('## 4. Pre-test Profile');
+    lines.push('');
+    var pretestCols = ['pretest_computer', 'pretest_smartphone', 'pretest_intranet_webe', 'pretest_hr_contact', 'pretest_hr_servicedesk'];
+    pretestCols.forEach(function (col) {
+      var vals = preRows.map(function (r) { return r[col]; }).filter(Boolean);
+      if (!vals.length) return;
+      var freq = {};
+      vals.forEach(function (v) { freq[v] = (freq[v] || 0) + 1; });
+      lines.push('**' + col.replace('pretest_', '') + ':**');
+      Object.keys(freq).sort(function (a, b) { return freq[b] - freq[a]; }).forEach(function (v) {
+        lines.push('- ' + v + ': ' + freq[v] + ' (' + pct(freq[v], vals.length) + ')');
+      });
+      lines.push('');
+    });
+  }
+
+  return lines.join('\n');
+}
+
+function exportReport() {
+  var content = generateReport();
+  var blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'tree-test-report-' + new Date().toISOString().slice(0, 10) + '.md';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 /* ── Main ─────────────────────────────────────────────────────────────────── */
 function processCSV(text) {
   var all  = parseCSV(text);
+  allRows  = all;
   var rows = all.filter(function (r) {
     return r.task_id && r.task_id !== 'pre_test' && r.task_id !== 'post_study';
   });
@@ -774,7 +1190,9 @@ function processCSV(text) {
     return;
   }
 
-  /* Group by task, then sort by numeric suffix (task1, task2, …) */
+  taskDataStore    = {};
+  currentTaskOrder = [];
+
   var taskMap = {}, taskOrder = [];
   rows.forEach(function (r) {
     var tid = r.task_id;
@@ -786,8 +1204,8 @@ function processCSV(text) {
     var nb = parseInt(b.replace(/\D/g, ''), 10) || 0;
     return na - nb;
   });
+  currentTaskOrder = taskOrder;
 
-  /* Stats */
   var pids = {}, langs = {};
   rows.forEach(function (r) { pids[r.participant_id] = true; if (r.language) langs[r.language] = true; });
   var nP = Object.keys(pids).length;
@@ -804,6 +1222,9 @@ function processCSV(text) {
 }
 
 function resetToUpload() {
+  allRows          = [];
+  currentTaskOrder = [];
+  taskDataStore    = {};
   document.getElementById('upload-area').style.display   = 'block';
   document.getElementById('analysis-area').style.display = 'none';
   document.getElementById('tasks-container').innerHTML    = '';
@@ -832,6 +1253,12 @@ dropZone.addEventListener('drop',      function (e) {
   var r = new FileReader();
   r.onload = function (ev) { processCSV(ev.target.result); };
   r.readAsText(f, 'UTF-8');
+});
+
+/* ── Event delegation for Copy PNG buttons ────────────────────────────────── */
+document.getElementById('tasks-container').addEventListener('click', function (e) {
+  var btn = e.target.closest('[data-copy-task]');
+  if (btn) copyPiePNG(btn.getAttribute('data-copy-task'));
 });
 </script>
 </body>
