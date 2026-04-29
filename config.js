@@ -196,7 +196,7 @@ const CONFIG = {
     },
     {
       id:          "task7",
-      scenario_nl: "Hierbij het attest betreffende mijn sociale promotie om mijn afwezigheid op datum van ../.. te staven.",
+      scenario_nl: "Hierbij het attest betreffende mijn sociale promotie om mijn afwezigheid op datum van 16/05 te staven.",
       scenario_fr: "[FR – scénario 7 à compléter]",
       correct_nl:  "nl_staven_sociale_promotie",
       correct_fr:  "fr_hrapps_toegang",
@@ -252,7 +252,7 @@ const CONFIG = {
     },
     {
       id:          "task15",
-      scenario_nl: "Voor mijn werkzaamheden heb ik toegang nodig tot de volgende applicatie: …  Kan U dit in orde brengen?",
+      scenario_nl: "Voor mijn werkzaamheden heb ik toegang nodig tot de volgende applicatie: SAP.  Kan U dit in orde brengen?",
       scenario_fr: "",
       correct_nl:  "nl_hrapps_toegang",
       correct_fr:  "",
