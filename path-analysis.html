@@ -821,6 +821,203 @@ function copyPiePNG(taskId) {
   }, 'image/png');
 }
 
+/* ── Task overview PNG ────────────────────────────────────────────────────── */
+function copyTaskOverviewPNG(taskId) {
+  var data = taskDataStore[taskId];
+  if (!data) return;
+
+  var SCALE  = 2;
+  var W      = 540;
+  var PAD    = 22;
+  var GREEN  = '#16a34a', LGREEN = '#86efac', ORANGE = '#f97316';
+  var RED    = '#dc2626', PURPLE = '#7e22ce', BLUE   = '#1d4ed8';
+
+  var outs     = data.outs;
+  var total    = data.total;
+  var nCorrect = outs.direct + outs.indirect;
+
+  var correctLines = [];
+  Object.keys(data.correctInfo || {}).sort().forEach(function (lang) {
+    var ci = data.correctInfo[lang];
+    if (ci && ci.correctPath) correctLines.push({ lang: lang.toUpperCase(), path: ci.correctPath });
+  });
+
+  var outcomeRows = [
+    { color: GREEN,  label: 'Direct correct',                       n: outs.direct },
+    { color: LGREEN, label: 'Indirect correct',                     n: outs.indirect },
+    { color: ORANGE, label: 'Close but wrong',                      n: outs.close },
+    { color: RED,    label: 'Completely wrong',                     n: outs.wrong },
+  ];
+  if (data.catastrophes > 0) {
+    outcomeRows.push({ color: PURPLE, label: 'Catastrophes (wrong, confidence ≥4)', n: data.catastrophes });
+  }
+
+  var ROWH   = 28;
+  var HDR_H  = 50;
+  var BAR_H  = 10;
+  var STAT_H = 38;
+  var COR_H  = correctLines.length ? correctLines.length * 22 + 10 : 0;
+  var H = PAD + HDR_H + 14 + BAR_H + 16 + outcomeRows.length * ROWH + 14 + STAT_H +
+          (correctLines.length ? 14 + COR_H : 0) + PAD;
+
+  var canvas = document.createElement('canvas');
+  canvas.width  = W * SCALE;
+  canvas.height = H * SCALE;
+  var ctx = canvas.getContext('2d');
+  ctx.scale(SCALE, SCALE);
+
+  /* Background */
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+
+  var y = PAD;
+
+  /* ── Header ── */
+  roundRect(ctx, PAD, y, 54, 22, 4);
+  ctx.fillStyle = '#eff6ff';
+  ctx.fill();
+  ctx.fillStyle = BLUE;
+  ctx.font = '700 9px ui-monospace, "SF Mono", Consolas, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(taskId.toUpperCase(), PAD + 27, y + 15);
+  ctx.textAlign = 'left';
+
+  var scen = data.scenario.length > 72 ? data.scenario.slice(0, 72) + '…' : data.scenario;
+  ctx.fillStyle = '#1f2937';
+  ctx.font = '600 12px ui-sans-serif, system-ui, -apple-system, sans-serif';
+  ctx.fillText(scen, PAD + 64, y + 12);
+
+  ctx.fillStyle = '#9ca3af';
+  ctx.font = '11px ui-sans-serif, system-ui, -apple-system, sans-serif';
+  ctx.fillText('N = ' + total + '   •   ' + pct(nCorrect, total) + ' correct', PAD + 64, y + 30);
+
+  y += HDR_H;
+
+  /* ── Stacked outcome bar ── */
+  var barW = W - PAD * 2;
+  ctx.fillStyle = '#f3f4f6';
+  ctx.fillRect(PAD, y, barW, BAR_H);
+  var bx = PAD;
+  [
+    { color: GREEN,  n: outs.direct },
+    { color: LGREEN, n: outs.indirect },
+    { color: ORANGE, n: outs.close },
+    { color: RED,    n: outs.wrong },
+  ].forEach(function (seg) {
+    if (!seg.n) return;
+    var sw = seg.n / total * barW;
+    ctx.fillStyle = seg.color;
+    ctx.fillRect(bx, y, sw, BAR_H);
+    bx += sw;
+  });
+
+  y += BAR_H + 16;
+
+  /* ── Outcome rows ── */
+  outcomeRows.forEach(function (row) {
+    ctx.beginPath();
+    ctx.arc(PAD + 6, y + 11, 5, 0, Math.PI * 2);
+    ctx.fillStyle = row.color;
+    ctx.fill();
+
+    var nStr = String(row.n);
+    ctx.fillStyle = '#1f2937';
+    ctx.font = '700 12px ui-sans-serif, system-ui, -apple-system, sans-serif';
+    ctx.fillText(nStr, PAD + 18, y + 15);
+    var nw = ctx.measureText(nStr).width;
+
+    ctx.fillStyle = '#9ca3af';
+    ctx.font = '11px ui-sans-serif, system-ui, -apple-system, sans-serif';
+    ctx.fillText('(' + pct(row.n, total) + ')', PAD + 18 + nw + 4, y + 15);
+
+    ctx.fillStyle = '#374151';
+    ctx.font = '12px ui-sans-serif, system-ui, -apple-system, sans-serif';
+    ctx.fillText(row.label, PAD + 90, y + 15);
+
+    y += ROWH;
+  });
+
+  y += 14;
+
+  /* ── Stats panel ── */
+  roundRect(ctx, PAD, y, W - PAD * 2, STAT_H, 6);
+  ctx.fillStyle = '#f9fafb';
+  ctx.fill();
+  ctx.strokeStyle = '#e5e7eb';
+  ctx.lineWidth = 0.75;
+  ctx.stroke();
+
+  var statsItems = [
+    { label: 'MEDIAN TIME',      value: data.medianTime },
+    { label: 'MEAN CONFIDENCE',  value: data.meanConf },
+    { label: 'CATASTROPHES',     value: String(data.catastrophes) },
+  ];
+  var colW = (W - PAD * 2) / statsItems.length;
+  statsItems.forEach(function (item, i) {
+    var cx = PAD + colW * i + colW / 2;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#9ca3af';
+    ctx.font = '700 8.5px ui-sans-serif, system-ui, -apple-system, sans-serif';
+    ctx.fillText(item.label, cx, y + 14);
+    ctx.fillStyle = '#1f2937';
+    ctx.font = '700 13px ui-sans-serif, system-ui, -apple-system, sans-serif';
+    ctx.fillText(item.value, cx, y + 30);
+  });
+  ctx.textAlign = 'left';
+
+  y += STAT_H;
+
+  /* ── Correct answer lines ── */
+  if (correctLines.length) {
+    y += 14;
+    correctLines.forEach(function (cl) {
+      roundRect(ctx, PAD, y, 24, 16, 3);
+      ctx.fillStyle = GREEN;
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '700 7.5px ui-monospace, "SF Mono", Consolas, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(cl.lang, PAD + 12, y + 11);
+      ctx.textAlign = 'left';
+
+      var pathStr = cl.path.length > 64 ? cl.path.slice(0, 64) + '…' : cl.path;
+      ctx.fillStyle = '#15803d';
+      ctx.font = '11px ui-sans-serif, system-ui, -apple-system, sans-serif';
+      ctx.fillText('✓ ' + pathStr, PAD + 32, y + 12);
+
+      y += 22;
+    });
+  }
+
+  /* ── Export ── */
+  canvas.toBlob(function (blob) {
+    if (!blob) { alert('Failed to generate image.'); return; }
+    var btn = document.querySelector('[data-copy-task-overview="' + taskId + '"]');
+
+    function downloadFallback() {
+      var url = URL.createObjectURL(blob);
+      var a   = document.createElement('a');
+      a.href     = url;
+      a.download = taskId + '-overview.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      if (btn) { btn.textContent = '✓ Saved!'; setTimeout(function () { btn.textContent = 'Copy PNG'; }, 1800); }
+    }
+
+    if (navigator.clipboard && window.ClipboardItem) {
+      navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+        .then(function () {
+          if (btn) { btn.textContent = '✓ Copied!'; setTimeout(function () { btn.textContent = 'Copy PNG'; }, 1800); }
+        })
+        .catch(function () { downloadFallback(); });
+    } else {
+      downloadFallback();
+    }
+  }, 'image/png');
+}
+
 /* ── Task section ─────────────────────────────────────────────────────────── */
 function renderTask(taskId, rows) {
   var total = rows.length;
@@ -950,6 +1147,7 @@ function renderTask(taskId, rows) {
             catChip +
           '</div>' +
           '<div class="correct-notes">' + correctNotes + '</div>' +
+          '<button class="btn-copy-png" data-copy-task-overview="' + esc(taskId) + '">Copy task PNG</button>' +
         '</div>' +
         '<div class="task-stats-row">' +
           '<span>⏱ Median time: <strong>' + medianTime + '</strong></span>' +
@@ -1258,7 +1456,9 @@ dropZone.addEventListener('drop',      function (e) {
 /* ── Event delegation for Copy PNG buttons ────────────────────────────────── */
 document.getElementById('tasks-container').addEventListener('click', function (e) {
   var btn = e.target.closest('[data-copy-task]');
-  if (btn) copyPiePNG(btn.getAttribute('data-copy-task'));
+  if (btn) { copyPiePNG(btn.getAttribute('data-copy-task')); return; }
+  btn = e.target.closest('[data-copy-task-overview]');
+  if (btn) copyTaskOverviewPNG(btn.getAttribute('data-copy-task-overview'));
 });
 </script>
 </body>
