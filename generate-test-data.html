@@ -277,6 +277,19 @@
       </div>
     </div>
 
+    <div class="field">
+      <label>Catastrophe rate</label>
+      <div class="brow">
+        <div class="brow-dot" style="background:#7e22ce;border:1px solid #d8b4fe"></div>
+        <label>Wrong + confident (≥&nbsp;4/5)</label>
+        <input type="range" id="pct-catastrophe" min="0" max="100" value="0"
+               style="width:80px;accent-color:#7e22ce"
+               oninput="document.getElementById('val-catastrophe').textContent = this.value + '%'">
+        <span class="brow-val" id="val-catastrophe">0%</span>
+      </div>
+      <p style="font-size:0.7rem;color:#9ca3af;margin-top:0.25rem">% of wrong-answer tasks where the participant rates confidence 4 or 5</p>
+    </div>
+
     <button class="btn-generate" id="btn-generate" onclick="runGenerate()">Generate</button>
   </div>
 
@@ -385,7 +398,7 @@ function pickOtherLeaf(correctId, allLeaves, pathMap, prng, sameTier1) {
 }
 
 /* ── Simulate one task ────────────────────────────────────────────────────── */
-function simulateTask(task, lang, behavior, prng, allLeaves, pathMap) {
+function simulateTask(task, lang, behavior, prng, allLeaves, pathMap, catastropheRate) {
   var correctId = task['correct_' + lang];
   var events = [];
   var finalAnswerId;
@@ -486,10 +499,16 @@ function simulateTask(task, lang, behavior, prng, allLeaves, pathMap) {
   var baseTime = behavior === 'direct' ? 8 : (behavior.indexOf('indirect') === 0 ? 28 : 18);
   var timeSeconds = Math.floor(baseTime + prng() * baseTime + prng() * 8);
 
-  /* Realistic confidence: correct → tends higher, wrong → tends lower */
-  var conf = isCorrect
-    ? Math.min(5, Math.floor(prng() * 3) + 3)
-    : Math.max(1, Math.floor(prng() * 3) + 1);
+  /* Realistic confidence: correct → tends higher, wrong → tends lower.
+     If catastropheRate > 0 and this is a wrong answer, roll for catastrophe. */
+  var conf;
+  if (isCorrect) {
+    conf = Math.min(5, Math.floor(prng() * 3) + 3);
+  } else if ((catastropheRate || 0) > 0 && prng() < catastropheRate) {
+    conf = Math.floor(prng() * 2) + 4; /* 4 or 5 — wrong but overconfident */
+  } else {
+    conf = Math.max(1, Math.floor(prng() * 3) + 1);
+  }
 
   return {
     pathEvents:      pathEvents,
@@ -509,7 +528,7 @@ function simulateTask(task, lang, behavior, prng, allLeaves, pathMap) {
 }
 
 /* ── Generate one participant ─────────────────────────────────────────────── */
-function generateParticipant(lang, behaviorMix) {
+function generateParticipant(lang, behaviorMix, catastropheRate) {
   var seed = Math.floor(Math.random() * 0x7fffffff);
   var prng = makePRNG(seed);
   var pid  = 'TEST-' + String(1000 + Math.floor(Math.random() * 9000));
@@ -565,7 +584,7 @@ function generateParticipant(lang, behaviorMix) {
       if (behavior === 'indirect') behavior = prng() < 0.5 ? 'indirect_explore' : 'indirect_select';
     }
 
-    var res = simulateTask(task, lang, behavior, prng, allLeaves, pm);
+    var res = simulateTask(task, lang, behavior, prng, allLeaves, pm, catastropheRate);
 
     /* Track summary */
     var summaryBehavior = behavior.indexOf('indirect') === 0 ? 'indirect' : behavior;
@@ -670,10 +689,12 @@ function runGenerate() {
   var c = 0;
   ['direct','indirect','close','wrong'].forEach(function(k){ c += mix[k]; cumMix[k] = c; });
 
+  var catastropheRate = +document.getElementById('pct-catastrophe').value / 100;
+
   var participants = [];
   for (var i = 0; i < n; i++) {
     var pLang = lang === 'mix' ? (i % 2 === 0 ? 'nl' : 'fr') : lang;
-    participants.push(generateParticipant(pLang, cumMix));
+    participants.push(generateParticipant(pLang, cumMix, catastropheRate));
   }
 
   lastParticipants = participants;
