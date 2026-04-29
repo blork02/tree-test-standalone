@@ -54,7 +54,7 @@ const CONFIG = {
       pretestGridIntro: "Indiquez à quelle fréquence les affirmations suivantes vous correspondent :",
       pretestRows: [
         "J'utilise un ordinateur pour mon travail",
-        "J'utilise un smartphone pour mon travail",
+        "J'utilise un smartphone/tablette pour mon travail",
         "Je consulte l'intranet WeBe",
         "Je contacte les RH pour des questions ou des remarques",
         "Je contacte les RH via leur Service Desk en ligne"
@@ -122,7 +122,7 @@ const CONFIG = {
       pretestGridIntro: "Geef aan hoe vaak de volgende uitspraken op u van toepassing zijn:",
       pretestRows: [
         "Ik gebruik een computer voor mijn werk",
-        "Ik gebruik een smartphone voor mijn werk",
+        "Ik gebruik een smartphone/tablet voor mijn werk",
         "Ik raadpleeg het intranet WeBe",
         "Ik neem contact op met HR voor vragen of opmerkingen",
         "Ik neem contact op met HR via hun online Service Desk"
