@@ -17,6 +17,7 @@ A standalone, zero-dependency tree test for UX research. No build step. Open `in
 | `generate-test-data.html` | Fake participant generator — produces a synthetic CSV in the same format as `app.js` exports, for testing `path-analysis.html` without running a real study |
 | `merge-csv.html` | Drag-and-drop tool to merge individual participant CSVs into one file for `path-analysis.html` |
 | `RESEARCHER-GUIDE.md` | Step-by-step workflow guide for the researcher (session setup → data collection → analysis) |
+| `_preview-download.html` | Static preview of the download screen — open directly to iterate on its styles without completing a full session |
 
 ## Development
 
@@ -26,6 +27,10 @@ No build, no package manager, no test suite. Open `index.html` directly in a bro
 python3 -m http.server 8080
 # then open http://localhost:8080
 ```
+
+Append `?lang=nl` or `?lang=fr` to skip the language selector screen during development.
+
+Live on GitHub Pages: `https://blork02.github.io/tree-test-standalone/` (append `?lang=nl` or `?lang=fr` for participant links).
 
 Syntax-check JS files without running them:
 
@@ -103,7 +108,7 @@ Full column reference and the analysis prompt template for Claude are in `ANALYS
 
 ## Editing content
 
-- **Add/change tasks**: edit `CONFIG.tasks` in `config.js`. `correct_nl`/`correct_fr` must be valid leaf node IDs from the respective tree.
-- **Fill in the FR tree**: populate `label` strings in `CONFIG.trees.fr` and `scenario_fr`/`correct_fr` in each task.
+- **Add/change tasks**: edit `CONFIG.tasks` in `config.js`. `correct_nl`/`correct_fr` must be valid leaf node IDs from the respective tree. The session always runs all tasks in the array in randomised order.
+- **Fill in the FR tree**: populate `label` strings in `CONFIG.trees.fr` and `scenario_fr`/`correct_fr` in each task. Top-level children of the tree root also appear as options in the "hardest categories" multiselect on the post-study screen.
 - **Add UI strings**: add keys to both `CONFIG.i18n.fr` and `CONFIG.i18n.nl`; reference them with `t('key')` in `app.js`.
 - **Styles**: `styles.css` uses plain CSS with no preprocessor. All colours are hardcoded; blue = `#1d4ed8`, green = `#16a34a`.
