@@ -64,7 +64,8 @@ Derive the readable label from `final_answer_path` context or the tree config. M
 From rows where `task_id = post_study`:
 
 - **Ease rating distribution** (1–5): count and % per value, mean
-- **Hardest categories** (`structure_words` column, pipe-separated): count mentions per category, sorted descending
+- **Perception adjectives** (`structure_words` column, pipe-separated): count mentions per adjective, sorted descending
+- **Perception adjectives — open-ended** (`structure_other`): list verbatim with participant ID, one per respondent
 - **Open comments** (`other_comments`): list verbatim, one per participant
 
 ### 5. Pre-test profile (optional, if data present)

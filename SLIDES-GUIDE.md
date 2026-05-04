@@ -60,7 +60,7 @@ Provide the Figma file URL when prompted. Claude will use the Figma MCP to write
 | 5 | Top finding 2 | Catastrophe analysis — who was confidently wrong |
 | 6–N | Per-task deep dives | One slide per problematic task |
 | N+1 | First-click patterns | Which categories attract the wrong first click |
-| N+2 | Post-study ease | Rating distribution + hardest categories |
+| N+2 | Post-study ease | Rating distribution + perception adjectives |
 | N+3 | Participant quotes | Selected verbatim comments |
 | N+4 | Recommendations | 3–5 IA changes, prioritized |
 | N+5 | Next steps | Proposed iterations or follow-up study |

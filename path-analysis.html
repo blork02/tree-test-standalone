@@ -1588,8 +1588,17 @@ function generateReport() {
     });
     var catList = Object.keys(catMap).sort(function (a, b) { return catMap[b] - catMap[a]; });
     if (catList.length) {
-      lines.push('**Hardest categories (by mention count):**');
+      lines.push('**Perception adjectives (by mention count):**');
       catList.forEach(function (c) { lines.push('- ' + c + ': ' + catMap[c]); });
+      lines.push('');
+    }
+
+    var structureOther = postRows.filter(function (r) { return r.structure_other && r.structure_other.trim(); });
+    if (structureOther.length) {
+      lines.push('**Perception adjectives — open-ended responses:**');
+      structureOther.forEach(function (r) {
+        lines.push('- [' + r.participant_id + '] ' + r.structure_other.trim());
+      });
       lines.push('');
     }
 
