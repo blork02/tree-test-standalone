@@ -13,10 +13,11 @@ A standalone, zero-dependency tree test for UX research. No build step. Open `in
 | `config.js` | All editable content (tree, tasks, i18n strings, result emails) |
 | `app.js` | Session state machine; reads `CONFIG` at runtime |
 | `styles.css` | All styles for `index.html`; `admin.html` has its own inline styles |
-| `path-analysis.html` | Standalone analysis tool — upload a merged CSV to visualize navigation paths per task (Google Analytics-style path explorer + first-click pie chart) |
-| `generate-test-data.html` | Fake participant generator — produces a synthetic CSV in the same format as `app.js` exports, for testing `path-analysis.html` without running a real study |
+| `path-analysis.html` | Standalone analysis tool — upload a merged CSV to visualize navigation paths per task; path explorer, first-click pie chart (Copy PNG), per-task overview card (Copy task PNG), catastrophe metric, and Markdown report export |
+| `generate-test-data.html` | Fake participant generator — produces a synthetic CSV in the same format as `app.js` exports, for testing `path-analysis.html` without running a real study; includes a Catastrophe rate slider |
 | `merge-csv.html` | Drag-and-drop tool to merge individual participant CSVs into one file for `path-analysis.html` |
 | `RESEARCHER-GUIDE.md` | Step-by-step workflow guide for the researcher (session setup → data collection → analysis) |
+| `SLIDES-GUIDE.md` | Instructions for turning an exported report into a Figma slide deck using Claude (prompt template + Figma MCP steps) |
 | `_preview-download.html` | Static preview of the download screen — open directly to iterate on its styles without completing a full session |
 
 ## Development
@@ -89,11 +90,17 @@ Task order uses a seeded LCG shuffle (`Math.imul`) so the seed is recorded in th
 - `getCorrectInfo(taskRows)` — infers the correct answer (tier-1 label + node ID + full path) from rows where `correct === 'true'`, grouped by language
 - `classify(row, correctInfo)` — returns `'direct' | 'indirect' | 'close' | 'wrong'` based on path and outcome
 - `buildTrie(participants)` — builds a prefix trie over each participant's OPEN event sequence for the flow explorer
-- `renderNode(node, totalTask, depth)` — renders `<details>/<summary>` tree nodes; all collapsed by default (`autoOpen = ''`)
-- `renderFirstClickPie(rows)` — SVG pie (100×100); correct slice = `#16a34a` green, wrong slices cycle through shaded reds; handles the single-slice case with a `<circle>` fallback
+- `renderNode(node, totalTask, depth)` — renders `<details>/<summary>` tree nodes; all collapsed by default
+- `renderFirstClickPie(rows, correctInfo, taskId)` — SVG pie (100×100); correct slice = `#16a34a` green, wrong slices cycle through shaded reds; handles the single-slice case with a `<circle>` fallback; adds a "Copy PNG" button when `taskId` is provided
+- `copyPiePNG(taskId)` — renders the first-click pie + legend to a 2× Canvas and copies it to clipboard; falls back to download if `navigator.clipboard` is unavailable (e.g. `file://`)
+- `copyTaskOverviewPNG(taskId)` — renders a task summary card (outcome bar, counts, stats panel, correct answers) to a 2× Canvas with the same clipboard/download fallback
+- `generateReport()` / `exportReport()` — produce a structured Markdown report with YAML frontmatter (overview table, per-task path flow, post-study analysis, pre-test profile) and trigger a `.md` download
+- Global `taskDataStore` holds per-task data keyed by `task_id` (set in `renderTask`, augmented by `renderFirstClickPie`); `allRows` and `currentTaskOrder` are module-level state used by `generateReport`
+- Catastrophe metric: `correct === 'false'` AND `parseInt(confidence) >= 4`; shown as a purple chip in the outcome row and always-visible stat (gray at 0, purple when > 0)
 - Task sections sorted numerically by the integer suffix of `task_id` (task1, task2, …)
+- Copy buttons use event delegation on `#tasks-container` — a single listener dispatches on `data-copy-task` (pie PNG) vs `data-copy-task-overview` (task overview PNG); both share the `btn-copy-png` CSS class
 
-**`generate-test-data.html`** — loads `config.js` via `<script src="config.js">` to access the real tree. Uses the same LCG PRNG as `app.js` (`Math.imul(1664525, state) + 1013904223`). Simulates 5 behavior archetypes: `direct`, `indirect_explore` (opens wrong branch, no select), `indirect_select` (wrong leaf, then backtracks to correct), `close` (correct tier-1, wrong leaf), `wrong` (different tier-1 branch entirely). Outputs the same 27-column CSV format as `app.js`.
+**`generate-test-data.html`** — loads `config.js` via `<script src="config.js">` to access the real tree. Uses the same LCG PRNG as `app.js` (`Math.imul(1664525, state) + 1013904223`). Simulates 5 behavior archetypes: `direct`, `indirect_explore` (opens wrong branch, no select), `indirect_select` (wrong leaf, then backtracks to correct), `close` (correct tier-1, wrong leaf), `wrong` (different tier-1 branch entirely). Has a "Catastrophe rate" slider (0–100%) that controls the fraction of wrong-answer tasks where confidence is set to 4 or 5. Outputs the same 27-column CSV format as `app.js`.
 
 ## CSV output
 

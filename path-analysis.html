@@ -364,6 +364,107 @@
       vertical-align: middle;
     }
     .btn-copy-png:hover { background: #f9fafb; color: #374151; border-color: #d1d5db; }
+
+    /* ── Section cards (pre/post study) ───────────────────────────────────── */
+    .section-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      overflow: hidden;
+    }
+    .section-card > summary {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.875rem 1.125rem;
+      cursor: pointer;
+      user-select: none;
+      list-style: none;
+      font-weight: 700;
+      font-size: 0.9375rem;
+    }
+    .section-card > summary::-webkit-details-marker { display: none; }
+    .section-card[open] > summary { border-bottom: 1px solid #e5e7eb; background: #fafafa; }
+    .section-card[open] .ts-arrow { transform: rotate(90deg); }
+    .section-card-body { padding: 1.25rem; }
+
+    /* ── Filter panel ─────────────────────────────────────────────────────── */
+    .filter-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 0.625rem;
+      flex-wrap: wrap;
+    }
+    .filter-label {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: #374151;
+      min-width: 170px;
+      padding-top: 2px;
+    }
+    .filter-checks { display: flex; gap: 0.625rem; flex-wrap: wrap; }
+    .filter-check {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.8125rem;
+      color: #374151;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .filter-check input { cursor: pointer; }
+    .btn-clear-filters {
+      padding: 0.2rem 0.625rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      background: white;
+      font-size: 0.75rem;
+      cursor: pointer;
+      color: #6b7280;
+      font-family: inherit;
+      margin-left: auto;
+    }
+    .btn-clear-filters:hover { background: #f9fafb; }
+
+    /* ── Stacked bar chart (pre-study) ────────────────────────────────────── */
+    .pre-question-row { margin-bottom: 1.25rem; }
+    .pre-question-label { font-size: 0.8125rem; font-weight: 600; color: #374151; margin-bottom: 0.375rem; }
+    .stacked-bar-wrap { display: flex; align-items: center; gap: 0.75rem; }
+    .stacked-bar { height: 22px; border-radius: 4px; display: flex; overflow: hidden; flex: 1; background: #f3f4f6; }
+    .sb-seg { height: 100%; }
+    .stacked-legend { display: flex; flex-wrap: wrap; gap: 0.375rem 1rem; margin-top: 0.375rem; }
+    .stacked-legend-item { display: flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; color: #374151; }
+    .sl-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+    /* ── Horizontal bar chart (post-study adjectives) ─────────────────────── */
+    .hbar-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.375rem; }
+    .hbar-label { font-size: 0.8125rem; color: #374151; width: 170px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hbar-track { flex: 1; height: 14px; background: #f3f4f6; border-radius: 3px; overflow: hidden; }
+    .hbar-fill  { height: 100%; border-radius: 3px; background: #1d4ed8; }
+    .hbar-count { font-size: 0.75rem; color: #9ca3af; white-space: nowrap; flex-shrink: 0; min-width: 70px; text-align: right; }
+
+    /* ── Comments ─────────────────────────────────────────────────────────── */
+    .comments-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .comment-item { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.8125rem; color: #374151; line-height: 1.5; }
+    .comment-pid { font-size: 0.7rem; color: #9ca3af; font-family: monospace; margin-bottom: 0.2rem; }
+    .task-comments { margin-top: 0.875rem; padding-top: 0.875rem; border-top: 1px solid #f3f4f6; }
+
+    /* ── Catastrophe filter button ────────────────────────────────────────── */
+    .btn-cat-filter {
+      padding: 0.15rem 0.5rem;
+      border: 1px solid #e9d5ff;
+      border-radius: 4px;
+      background: white;
+      font-size: 0.75rem;
+      cursor: pointer;
+      color: #7e22ce;
+      font-family: inherit;
+    }
+    .btn-cat-filter:hover { background: #fdf4ff; }
+    .btn-cat-filter.active { background: #fdf4ff; border-color: #7e22ce; font-weight: 600; }
+    .cat-filter-note { font-size: 0.75rem; color: #7e22ce; font-style: italic; margin-bottom: 0.375rem; }
   </style>
 </head>
 <body>
@@ -407,7 +508,9 @@
     <div class="legend-item"><div class="ls wrong"></div>    Completely wrong — never explored the correct area</div>
   </div>
 
+  <div id="pre-study-container"></div>
   <div id="tasks-container"></div>
+  <div id="post-study-container"></div>
 </div>
 
 <script>
@@ -1018,6 +1121,150 @@ function copyTaskOverviewPNG(taskId) {
   }, 'image/png');
 }
 
+/* ── Pre/Post study rendering ─────────────────────────────────────────────── */
+var PALETTE = ['#1d4ed8', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+function renderStackedBarFromFreq(freq, total, colorFn) {
+  var entries = Object.keys(freq).map(function (k) { return { label: k, count: freq[k] }; });
+  entries.sort(function (a, b) {
+    var na = parseFloat(a.label), nb = parseFloat(b.label);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return a.label.localeCompare(b.label);
+  });
+  entries.forEach(function (e, i) { e.color = colorFn ? colorFn(e.label) : PALETTE[i % PALETTE.length]; });
+
+  var segs = entries.map(function (e) {
+    return '<div class="sb-seg" style="width:' + pct(e.count, total) + ';background:' + e.color + '" title="' + esc(e.label) + ': ' + e.count + '"></div>';
+  }).join('');
+  var legend = entries.map(function (e) {
+    return '<div class="stacked-legend-item">' +
+      '<div class="sl-swatch" style="background:' + e.color + '"></div>' +
+      '<span>' + esc(e.label) + ' — ' + e.count + ' (' + pct(e.count, total) + ')</span>' +
+    '</div>';
+  }).join('');
+
+  return (
+    '<div class="stacked-bar-wrap"><div class="stacked-bar">' + segs + '</div>' +
+    '<span style="font-size:0.75rem;color:#9ca3af;white-space:nowrap">N=' + total + '</span></div>' +
+    '<div class="stacked-legend">' + legend + '</div>'
+  );
+}
+
+function renderPreStudy(preRows) {
+  if (!preRows.length) return '';
+
+  var colSet = {};
+  preRows.forEach(function (r) {
+    Object.keys(r).forEach(function (k) { if (k.indexOf('pretest_') === 0) colSet[k] = true; });
+  });
+  var cols = Object.keys(colSet).sort();
+  if (!cols.length) return '';
+
+  var body = cols.map(function (col) {
+    var vals = preRows.map(function (r) { return r[col]; }).filter(Boolean);
+    if (!vals.length) return '';
+    var freq = {};
+    vals.forEach(function (v) { freq[v] = (freq[v] || 0) + 1; });
+    var label = col.replace(/^pretest_/, '').replace(/_/g, ' ');
+    label = label.charAt(0).toUpperCase() + label.slice(1);
+    return '<div class="pre-question-row">' +
+      '<div class="pre-question-label">' + esc(label) + '</div>' +
+      renderStackedBarFromFreq(freq, vals.length, null) +
+    '</div>';
+  }).join('');
+
+  if (!body) return '';
+
+  return (
+    '<details class="section-card">' +
+      '<summary><span class="ts-arrow">▶</span> Pre-study profile' +
+        '<span style="font-size:0.75rem;font-weight:400;color:#9ca3af;margin-left:0.5rem">N=' + preRows.length + '</span></summary>' +
+      '<div class="section-card-body">' + body + '</div>' +
+    '</details>'
+  );
+}
+
+function renderPostStudy(postRows) {
+  if (!postRows.length) return '';
+
+  var body = '';
+  var sep  = '<div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid #f3f4f6">';
+
+  /* Ease rating */
+  var EASE_COLORS = { '1': '#dc2626', '2': '#f97316', '3': '#f59e0b', '4': '#86efac', '5': '#16a34a' };
+  var easeFreq = {}, easeSum = 0, easeN = 0;
+  postRows.forEach(function (r) {
+    var v = r.ease; if (!v) return;
+    easeFreq[v] = (easeFreq[v] || 0) + 1;
+    easeSum += parseFloat(v) || 0; easeN++;
+  });
+  if (easeN) {
+    body += '<div class="pre-question-row">' +
+      '<div class="pre-question-label">Ease of navigation' +
+        '<span style="font-weight:400;color:#9ca3af;margin-left:0.375rem">— mean ' + (easeSum / easeN).toFixed(1) + ' / 5</span>' +
+      '</div>' +
+      renderStackedBarFromFreq(easeFreq, easeN, function (v) { return EASE_COLORS[v] || '#9ca3af'; }) +
+    '</div>';
+  }
+
+  /* Hardest categories */
+  var catFreq = {};
+  postRows.forEach(function (r) {
+    if (!r.structure_words) return;
+    r.structure_words.split('|').forEach(function (c) {
+      var t = c.trim(); if (t) catFreq[t] = (catFreq[t] || 0) + 1;
+    });
+  });
+  var catList = Object.keys(catFreq).sort(function (a, b) { return catFreq[b] - catFreq[a]; });
+  if (catList.length) {
+    var maxCatN = catFreq[catList[0]];
+    var bars = catList.map(function (c) {
+      return '<div class="hbar-row">' +
+        '<div class="hbar-label" title="' + esc(c) + '">' + esc(c) + '</div>' +
+        '<div class="hbar-track"><div class="hbar-fill" style="width:' + pct(catFreq[c], maxCatN) + '"></div></div>' +
+        '<div class="hbar-count">' + catFreq[c] + ' (' + pct(catFreq[c], postRows.length) + ')</div>' +
+      '</div>';
+    }).join('');
+    var otherAdjectives = postRows
+      .map(function (r) { return { pid: r.participant_id, val: (r.structure_other || '').trim() }; })
+      .filter(function (o) { return o.val; });
+    var otherHtml = otherAdjectives.length
+      ? '<div style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.375rem">' +
+          otherAdjectives.map(function (o) {
+            return '<span style="background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;padding:0.15rem 0.5rem;font-size:0.75rem;color:#374151" title="' + esc(o.pid) + '">' + esc(o.val) + '</span>';
+          }).join('') +
+        '</div>'
+      : '';
+    body += (body ? sep : '<div>') +
+      '<div class="pre-question-label" style="margin-bottom:0.5rem">Perception adjectives</div>' +
+      bars + otherHtml + '</div>';
+  }
+
+  /* Open comments */
+  var postComments = postRows.filter(function (r) { return r.other_comments && r.other_comments.trim(); });
+  if (postComments.length) {
+    var items = postComments.map(function (r) {
+      return '<div class="comment-item">' +
+        '<div class="comment-pid">' + esc(r.participant_id) + '</div>' +
+        esc(r.other_comments.trim()) +
+      '</div>';
+    }).join('');
+    body += (body ? sep : '<div>') +
+      '<div class="pre-question-label" style="margin-bottom:0.5rem">Open comments</div>' +
+      '<div class="comments-list">' + items + '</div></div>';
+  }
+
+  if (!body) return '';
+
+  return (
+    '<details class="section-card">' +
+      '<summary><span class="ts-arrow">▶</span> Post-study analysis' +
+        '<span style="font-size:0.75rem;font-weight:400;color:#9ca3af;margin-left:0.5rem">N=' + postRows.length + '</span></summary>' +
+      '<div class="section-card-body">' + body + '</div>' +
+    '</details>'
+  );
+}
+
 /* ── Task section ─────────────────────────────────────────────────────────── */
 function renderTask(taskId, rows) {
   var total = rows.length;
@@ -1125,6 +1372,21 @@ function renderTask(taskId, rows) {
     ? '<span style="color:#7e22ce">⚠ Catastrophes: <strong>' + catastrophes + ' / ' + total + '</strong> <span style="font-size:0.75rem">(wrong but confidence ≥ 4)</span></span>'
     : '<span style="color:#d1d5db" title="Participants who selected the wrong answer yet rated confidence ≥ 4/5">⚠ Catastrophes: <strong>0</strong></span>';
 
+  var taskComments = rows.filter(function (r) { return r.comment && r.comment.trim(); });
+  var commentsHtml = taskComments.length
+    ? '<div class="task-comments">' +
+        '<div class="tree-hdr">Participant comments</div>' +
+        '<div class="comments-list">' +
+          taskComments.map(function (r) {
+            return '<div class="comment-item">' +
+              '<div class="comment-pid">' + esc(r.participant_id) + ' · ' + esc((r.language || '?').toUpperCase()) + '</div>' +
+              esc(r.comment.trim()) +
+            '</div>';
+          }).join('') +
+        '</div>' +
+      '</div>'
+    : '';
+
   return (
     '<details class="task-sec">' +
       '<summary>' +
@@ -1159,6 +1421,7 @@ function renderTask(taskId, rows) {
         '<div class="path-tree">' +
           (treeHtml || '<div class="no-data">No path data available.</div>') +
         '</div>' +
+        commentsHtml +
       '</div>' +
     '</details>'
   );
@@ -1412,8 +1675,12 @@ function processCSV(text) {
   document.getElementById('stat-t').textContent = taskOrder.length + ' task' + (taskOrder.length !== 1 ? 's' : '');
   document.getElementById('stat-l').textContent = Object.keys(langs).join('+').toUpperCase() || '—';
 
+  document.getElementById('pre-study-container').innerHTML =
+    renderPreStudy(all.filter(function (r) { return r.task_id === 'pre_test'; }));
   document.getElementById('tasks-container').innerHTML =
     taskOrder.map(function (tid) { return renderTask(tid, taskMap[tid]); }).join('');
+  document.getElementById('post-study-container').innerHTML =
+    renderPostStudy(all.filter(function (r) { return r.task_id === 'post_study'; }));
 
   document.getElementById('upload-area').style.display  = 'none';
   document.getElementById('analysis-area').style.display = 'block';
@@ -1423,10 +1690,12 @@ function resetToUpload() {
   allRows          = [];
   currentTaskOrder = [];
   taskDataStore    = {};
-  document.getElementById('upload-area').style.display   = 'block';
-  document.getElementById('analysis-area').style.display = 'none';
-  document.getElementById('tasks-container').innerHTML    = '';
-  document.getElementById('file-input').value             = '';
+  document.getElementById('upload-area').style.display      = 'block';
+  document.getElementById('analysis-area').style.display    = 'none';
+  document.getElementById('pre-study-container').innerHTML  = '';
+  document.getElementById('tasks-container').innerHTML      = '';
+  document.getElementById('post-study-container').innerHTML = '';
+  document.getElementById('file-input').value               = '';
 }
 
 /* ── File I/O ─────────────────────────────────────────────────────────────── */
