@@ -126,7 +126,46 @@ Tasks are sorted by P(v2 better) descending so the clearest improvements appear 
 
 > The Bayesian model naturally handles unequal sample sizes across iterations. A small N produces a wide posterior, which pushes P(improved) toward 0.50 and shows as "unclear" — the correct behaviour when there is not enough data to draw a conclusion.
 
-To request a written cross-iteration analysis from Claude, upload or paste both merged CSVs and say:
+### Reading the exported comparison file
+
+When you export from the Compare tab in `path-analysis.html`, you receive a `tree-test-comparison-YYYY-MM-DD.md` file. Its structure:
+
+| Section | What it tells you |
+|---|---|
+| YAML frontmatter | Iteration labels, export date |
+| Overall accuracy | Aggregate correct rate v1 → v2, delta pp across all tasks combined |
+| Summary table | Count of improved / inconclusive / regressed tasks |
+| Per-task comparison table | Row per task: accuracy v1/v2, Δ pp, P(v2 better), verdict, first-click v1/v2, FC Δ pp, catastrophe count v1→v2 |
+| Task scenarios (reference) | Full scenario text per task ID — use this to name tasks in your write-up |
+| Methodology | Model description for citation |
+
+**Column-by-column guide for the per-task table:**
+
+- **Accuracy v1 / v2** — % of participants who selected the correct final answer in each iteration.
+- **Δ pp** — raw difference in percentage points (v2 − v1). A positive value means more participants succeeded in v2.
+- **P(v2 better)** — Bayesian probability that the *true* underlying accuracy rate improved, not just the sample. A high P with a small Δ pp means even the small gain is likely real; a large Δ pp with P near 50% means the sample was too small to be confident.
+- **Verdict** — plain-language label derived from P: Strong ↑ (≥ 95%), Likely ↑ (≥ 80%), Unclear, Likely ↓ (≤ 20%), Strong ↓ (≤ 5%).
+- **First-click v1 / v2 and FC Δ pp** — same as accuracy metrics but for first-click correct. Improvement here means participants are finding the right branch faster, even if their final accuracy hasn't fully caught up yet.
+- **Catastrophes v1→v2** — count of wrong-yet-confident answers (correct=false AND confidence ≥ 4). A drop means the redesign reduced genuinely misleading labels. An increase is a warning sign even if overall accuracy went up.
+
+**How to interpret common patterns:**
+
+| Pattern | Interpretation |
+|---|---|
+| High Δ pp, Strong ↑ | Clear improvement — the IA change worked |
+| High Δ pp, Unclear | Change looks promising but N too small to confirm — re-test |
+| Low Δ pp, Strong ↑ | Small but reliable gain — likely a label polish, not a structural fix |
+| Accuracy up, catastrophes up | More people correct, but the *wrong* group became more confident — check the wrong-answer path |
+| FC Δ up, accuracy flat | Participants now navigate into the right branch first but still pick the wrong leaf — the tier-1 label is fixed, a leaf label is still confusing |
+| Regressed task | Something in the redesign introduced a new confusion — review what changed in that branch |
+
+### Requesting a written analysis from the comparison file
+
+Upload or paste the exported `tree-test-comparison-YYYY-MM-DD.md` into a Claude conversation and say:
+
+> "Analyze this tree test comparison report. Identify which tasks clearly improved (Strong ↑ or Likely ↑), which regressed, and which are inconclusive. For each improved task, describe what the accuracy shift and P(v2 better) value mean in plain language. Flag any tasks where catastrophes increased despite accuracy gains. Summarise the overall picture in 2–3 sentences, then list the tasks still needing attention for v3, ordered by residual failure rate."
+
+Or, if you want to compare the two individual iteration reports side-by-side instead:
 
 > "Compare these two iterations of the tree test. For each task, report: v1 accuracy, v2 accuracy, delta pp, and P(v2 better). Flag tasks where P ≥ 0.75 as improved and P ≤ 0.25 as regressed. Summarise the overall accuracy shift and highlight which tasks changed most. Also note first-click correct shift and catastrophe delta per task."
 

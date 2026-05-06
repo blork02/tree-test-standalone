@@ -4,12 +4,22 @@ How to turn an exported tree test report into a presentation using Claude and Fi
 
 ## Step 1 — Export the report
 
-In `path-analysis.html`, after uploading your merged CSV, click **↓ Export Report**. This downloads a Markdown file (`tree-test-report-YYYY-MM-DD.md`) containing:
+In `path-analysis.html`, after uploading your merged CSV, click **↓ Export Report**. What gets exported depends on which tab is active:
+
+**Single iteration tab active** → downloads `tree-test-report-YYYY-MM-DD.md` containing:
 
 - Overview table (all tasks: accuracy, time, confidence, catastrophes)
 - Per-task breakdown: correct answer, outcomes, first-opened distribution, wrong answers, backtrack rate, catastrophes with participant detail, open comments
-- Post-study analysis: ease ratings, hardest categories, open comments
+- Post-study analysis: ease ratings, perception adjectives, open comments
 - Pre-test profile: participant digital literacy scores
+
+**Compare tab active** (requires two loaded iterations) → downloads `tree-test-comparison-YYYY-MM-DD.md` containing:
+
+- Overall accuracy shift (v1 → v2, delta pp)
+- Summary counts (improved / inconclusive / regressed)
+- Per-task comparison table: accuracy v1/v2, Δ pp, P(v2 better), verdict, first-click v1/v2, first-click Δ pp, catastrophe delta
+- Task scenario reference list
+- Methodology note (Bayesian Beta-Binomial model)
 
 ## Step 2 — Generate slides with Claude
 
@@ -86,7 +96,7 @@ Add these slides when you have v1 and v2 data:
 
 ## Generating the comparison slide deck with Claude
 
-After exporting a report from each iteration, open a new Claude conversation and attach both `.md` files. Then use this prompt:
+Switch to the **Compare** tab in path-analysis.html and click **↓ Export Report** — this exports a single `tree-test-comparison-YYYY-MM-DD.md` file containing both iterations' stats in one document. Open a new Claude conversation and attach that file (or attach both individual iteration reports if you prefer). Then use this prompt:
 
 ---
 

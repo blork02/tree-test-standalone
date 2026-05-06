@@ -1696,13 +1696,144 @@ function generateReport() {
   return lines.join('\n');
 }
 
+function generateComparisonReport() {
+  var iter1 = iterations[0], iter2 = iterations[1];
+  var dateStr = new Date().toISOString().slice(0, 10);
+  var lines = [];
+
+  lines.push('---');
+  lines.push('type: tree-test-comparison');
+  lines.push('generated: ' + dateStr);
+  lines.push('iteration_1: "' + iter1.label + '"');
+  lines.push('iteration_2: "' + iter2.label + '"');
+  lines.push('---');
+  lines.push('');
+  lines.push('# Tree Test — Comparison Report: ' + iter1.label + ' vs ' + iter2.label);
+  lines.push('');
+  lines.push('**' + iter1.label + ':** ' + iter1.statP + ', ' + iter1.statT + ', Languages: ' + iter1.statL);
+  lines.push('**' + iter2.label + ':** ' + iter2.statP + ', ' + iter2.statT + ', Languages: ' + iter2.statL);
+  lines.push('');
+
+  var seen = {};
+  iter1.taskOrder.forEach(function (t) { seen[t] = true; });
+  iter2.taskOrder.forEach(function (t) { seen[t] = true; });
+  var tids = Object.keys(seen).sort(function (a, b) {
+    return (parseInt(a.replace(/\D/g, ''), 10) || 0) - (parseInt(b.replace(/\D/g, ''), 10) || 0);
+  });
+
+  var totalC1 = 0, totalN1 = 0, totalC2 = 0, totalN2 = 0;
+  var taskRows = tids.map(function (tid) {
+    var d1 = iter1.taskDataStore[tid], d2 = iter2.taskDataStore[tid];
+    if (!d1 && !d2) return null;
+    var r = { tid: tid, scenario: (d1 || d2).scenario };
+    if (d1) {
+      r.c1 = d1.outs.direct + d1.outs.indirect; r.n1 = d1.total;
+      r.fc1 = d1.rows.filter(function (row) { return row.first_click_correct === 'true'; }).length;
+      r.cat1 = d1.catastrophes;
+      totalC1 += r.c1; totalN1 += r.n1;
+    }
+    if (d2) {
+      r.c2 = d2.outs.direct + d2.outs.indirect; r.n2 = d2.total;
+      r.fc2 = d2.rows.filter(function (row) { return row.first_click_correct === 'true'; }).length;
+      r.cat2 = d2.catastrophes;
+      totalC2 += r.c2; totalN2 += r.n2;
+    }
+    if (d1 && d2) r.pBetter = probBetter(r.c1, r.n1, r.c2, r.n2);
+    return r;
+  }).filter(Boolean);
+
+  taskRows.sort(function (a, b) {
+    return (b.pBetter != null ? b.pBetter : 0.5) - (a.pBetter != null ? a.pBetter : 0.5);
+  });
+
+  var oa1str = totalN1 ? Math.round(totalC1 / totalN1 * 100) + '%' : '—';
+  var oa2str = totalN2 ? Math.round(totalC2 / totalN2 * 100) + '%' : '—';
+  var oaDelta = (totalN1 && totalN2) ? Math.round((totalC2 / totalN2 - totalC1 / totalN1) * 100) : null;
+  lines.push('**Overall accuracy:** ' + oa1str + ' → ' + oa2str +
+    (oaDelta !== null ? ' (' + (oaDelta >= 0 ? '+' : '') + oaDelta + 'pp)' : ''));
+  lines.push('');
+
+  var nUp = 0, nDown = 0, nFlat = 0;
+  taskRows.forEach(function (r) {
+    if (r.pBetter == null) { nFlat++; }
+    else if (r.pBetter >= 0.80) { nUp++; }
+    else if (r.pBetter <= 0.20) { nDown++; }
+    else { nFlat++; }
+  });
+  lines.push('## Summary');
+  lines.push('');
+  lines.push('| | Count |');
+  lines.push('|---|---|');
+  lines.push('| Improved (P ≥ 0.80) | ' + nUp + ' |');
+  lines.push('| Inconclusive (0.20 < P < 0.80) | ' + nFlat + ' |');
+  lines.push('| Regressed (P ≤ 0.20) | ' + nDown + ' |');
+  lines.push('');
+
+  function pp(c, n) { return (c != null && n) ? Math.round(c / n * 100) + '%' : '—'; }
+  function dpp(c1, n1, c2, n2) {
+    if (c1 == null || c2 == null || !n1 || !n2) return '—';
+    var d = Math.round((c2 / n2 - c1 / n1) * 100);
+    return (d >= 0 ? '+' : '') + d + 'pp';
+  }
+  function verdict(p) {
+    if (p == null) return '—';
+    if (p >= 0.95) return 'Strong ↑';
+    if (p >= 0.80) return 'Likely ↑';
+    if (p <= 0.05) return 'Strong ↓';
+    if (p <= 0.20) return 'Likely ↓';
+    return 'Unclear';
+  }
+
+  lines.push('## Per-task comparison');
+  lines.push('');
+  lines.push('Sorted by P(v2 better), highest first.');
+  lines.push('');
+  lines.push('| task_id | Accuracy v1 | Accuracy v2 | Δ pp | P(v2 better) | Verdict | First-click v1 | First-click v2 | FC Δ pp | Catastrophes v1→v2 |');
+  lines.push('|---|---|---|---|---|---|---|---|---|---|');
+  taskRows.forEach(function (r) {
+    lines.push('| ' + r.tid +
+      ' | ' + pp(r.c1, r.n1) +
+      ' | ' + pp(r.c2, r.n2) +
+      ' | ' + dpp(r.c1, r.n1, r.c2, r.n2) +
+      ' | ' + (r.pBetter != null ? Math.round(r.pBetter * 100) + '%' : '—') +
+      ' | ' + verdict(r.pBetter) +
+      ' | ' + pp(r.fc1, r.n1) +
+      ' | ' + pp(r.fc2, r.n2) +
+      ' | ' + dpp(r.fc1, r.n1, r.fc2, r.n2) +
+      ' | ' + (r.cat1 != null ? r.cat1 : '—') + ' → ' + (r.cat2 != null ? r.cat2 : '—') +
+      ' |');
+  });
+  lines.push('');
+
+  lines.push('## Task scenarios (reference)');
+  lines.push('');
+  taskRows.slice().sort(function (a, b) {
+    return (parseInt(a.tid.replace(/\D/g, ''), 10) || 0) - (parseInt(b.tid.replace(/\D/g, ''), 10) || 0);
+  }).forEach(function (r) {
+    lines.push('- **' + r.tid + '**: ' + (r.scenario || ''));
+  });
+  lines.push('');
+
+  lines.push('## Methodology');
+  lines.push('');
+  lines.push('Bayesian Beta-Binomial model with Laplace prior (Beta(c+1, n−c+1) posterior). ' +
+    'P(v2 better) estimated via 5,000 Monte Carlo draws. ' +
+    'Strong ↑ = P ≥ 0.95, Likely ↑ = P ≥ 0.80, Likely ↓ = P ≤ 0.20, Strong ↓ = P ≤ 0.05, otherwise Unclear. ' +
+    'Small N produces wide posteriors → Unclear is the correct result when data is insufficient.');
+
+  return lines.join('\n');
+}
+
 function exportReport() {
-  var content = generateReport();
+  var isCompare = activeIterationIdx === -2 && iterations.length === 2;
+  var content  = isCompare ? generateComparisonReport() : generateReport();
   var blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
   a.href = url;
-  a.download = 'tree-test-report-' + new Date().toISOString().slice(0, 10) + '.md';
+  a.download = isCompare
+    ? 'tree-test-comparison-' + new Date().toISOString().slice(0, 10) + '.md'
+    : 'tree-test-report-' + new Date().toISOString().slice(0, 10) + '.md';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
