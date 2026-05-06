@@ -103,6 +103,35 @@ From rows where `task_id = pre_test`, columns `pretest_computer` through `pretes
 
 ---
 
+## Cross-iteration comparison (v1 vs v2)
+
+When you have loaded two iterations in `path-analysis.html`, a **↔ Compare** tab appears automatically. It computes:
+
+- **Accuracy shift** per task: v1 % correct → v2 % correct, delta in percentage points
+- **P(v2 better)**: Bayesian Beta-Binomial probability that v2 accuracy is genuinely higher. Uses a Laplace prior Beta(c+1, n−c+1) for each iteration, draws 5,000 Monte Carlo samples, and counts how often v2 > v1.
+- **First-click correct shift**: Δ pp in the % of participants whose first leaf click was correct
+- **Catastrophe delta**: change in the count of confidently-wrong participants (correct=false AND confidence ≥ 4)
+
+**Reading the confidence badge:**
+
+| Badge | Meaning |
+|---|---|
+| Strong ↑ (P ≥ 0.95) | Very likely improved |
+| Likely ↑ (P ≥ 0.75) | Probably improved |
+| Unclear (P 0.40–0.74) | Inconclusive — sample too small or effect too small |
+| Likely ↓ (P ≤ 0.25) | Probably regressed |
+| Strong ↓ (P ≤ 0.05) | Very likely regressed |
+
+Tasks are sorted by P(v2 better) descending so the clearest improvements appear first.
+
+> The Bayesian model naturally handles unequal sample sizes across iterations. A small N produces a wide posterior, which pushes P(improved) toward 0.50 and shows as "unclear" — the correct behaviour when there is not enough data to draw a conclusion.
+
+To request a written cross-iteration analysis from Claude, upload or paste both merged CSVs and say:
+
+> "Compare these two iterations of the tree test. For each task, report: v1 accuracy, v2 accuracy, delta pp, and P(v2 better). Flag tasks where P ≥ 0.75 as improved and P ≤ 0.25 as regressed. Summarise the overall accuracy shift and highlight which tasks changed most. Also note first-click correct shift and catastrophe delta per task."
+
+---
+
 ## Path visualization tips
 
 To reconstruct a Google Analytics-style flow for a given task:

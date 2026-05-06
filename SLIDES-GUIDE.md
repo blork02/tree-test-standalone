@@ -49,7 +49,7 @@ Provide the Figma file URL when prompted. Claude will use the Figma MCP to write
 - Your Figma file must have edit access for the connected account
 - A slide template frame should already exist in the file — Claude will replicate its structure
 
-## Suggested slide structure
+## Suggested slide structure — single iteration
 
 | # | Slide | Key content |
 |---|---|---|
@@ -65,8 +65,54 @@ Provide the Figma file URL when prompted. Claude will use the Figma MCP to write
 | N+4 | Recommendations | 3–5 IA changes, prioritized |
 | N+5 | Next steps | Proposed iterations or follow-up study |
 
+## Suggested slide structure — comparing two iterations
+
+Add these slides when you have v1 and v2 data:
+
+| # | Slide | Key content |
+|---|---|---|
+| 1 | Title | "v1 vs. v2 — What changed?" — dates, N per iteration |
+| 2 | What we changed | The IA fixes applied between iterations (from recommendations) |
+| 3 | Overall accuracy shift | v1 vs v2 accuracy side-by-side bar, delta pp, overall P(v2 better) |
+| 4 | Per-task change table | Accuracy v1→v2, delta pp, confidence badge per task |
+| 5 | Biggest wins | Tasks with P ≥ 0.95 — what changed and why it worked |
+| 6 | Remaining issues | Tasks still below 70% correct or showing regression |
+| 7 | Catastrophe delta | Did confidently-wrong answers go down? Per task. |
+| 8 | First-click shift | Which categories are now attracting the right first click |
+| 9 | Participant quotes v2 | New verbatim comments — tone shift vs v1? |
+| 10 | Recommendations | Remaining fixes for v3, prioritized by residual failure rate |
+
+---
+
+## Generating the comparison slide deck with Claude
+
+After exporting a report from each iteration, open a new Claude conversation and attach both `.md` files. Then use this prompt:
+
+---
+
+> You are a UX researcher presenting a before/after comparison of two tree test iterations on an HR service desk navigation. I've attached two analysis reports: one for v1 and one for v2.
+>
+> Please:
+>
+> 1. **Summarize what changed** between v1 and v2 in overall accuracy and per task. Highlight tasks that clearly improved (P ≥ 0.75 that v2 > v1) and any that regressed. Note first-click correct shift and catastrophe delta.
+>
+> 2. **Generate a slide deck structure** for a "v1 vs. v2" readout (approx. 10 slides). For each slide provide:
+>    - Slide title
+>    - Key message (1 sentence, written as an insight)
+>    - Supporting data points (exact numbers from both reports)
+>    - Suggested visual (bar chart / delta table / quote)
+>    - Speaker notes (2–3 sentences)
+>
+> 3. **Recommend 3–5 IA changes** still needed for v3, ordered by residual failure rate.
+>
+> The audience is the HR service desk product team. Lead with what improved, flag what didn't, and give a clear verdict on whether the changes between iterations worked.
+
+---
+
 ## Tips
 
 - **Catastrophes are your lead story.** A participant who was wrong AND confident is more damaging than one who was wrong and knew it. These indicate genuinely misleading labels.
 - **First-opened data beats final accuracy** for IA diagnosis. Even if a task scores 70% correct, if most participants opened the wrong branch first, the label is confusing.
 - **Copy PNG** (the button next to each pie chart in path-analysis.html) produces a clean image you can paste directly into slides without re-creating the chart.
+- **Use the Compare tab numbers directly.** The P(v2 better) values in path-analysis.html are the same numbers to quote in slides — no need to recompute. "Task 4 improved from 40% → 75% correct (P = 0.97)" is a slide-ready sentence.
+- **"Unclear" is a valid finding.** If P is 0.40–0.74, the sample was too small to confirm the change. Report it as "inconclusive — recommend re-testing with more participants" rather than claiming improvement.
