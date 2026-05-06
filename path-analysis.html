@@ -465,6 +465,23 @@
     .btn-cat-filter:hover { background: #fdf4ff; }
     .btn-cat-filter.active { background: #fdf4ff; border-color: #7e22ce; font-weight: 600; }
     .cat-filter-note { font-size: 0.75rem; color: #7e22ce; font-style: italic; margin-bottom: 0.375rem; }
+
+    /* ── Iteration tabs ───────────────────────────────────────────────────── */
+    .iter-tabs { display: flex; gap: 0.375rem; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .iter-tab {
+      display: flex; align-items: center; gap: 0.3rem;
+      padding: 0.275rem 0.625rem;
+      border: 1px solid #e5e7eb; border-radius: 6px;
+      background: white; font-size: 0.8125rem; cursor: pointer;
+      color: #6b7280; font-family: inherit; white-space: nowrap;
+    }
+    .iter-tab:hover { background: #f9fafb; }
+    .iter-tab.active { background: #eff6ff; border-color: #1d4ed8; color: #1d4ed8; font-weight: 600; }
+    .iter-tab-remove {
+      font-size: 0.7rem; color: #d1d5db; background: none; border: none;
+      cursor: pointer; padding: 0; line-height: 1; font-family: inherit; margin-left: 0.125rem;
+    }
+    .iter-tab-remove:hover { color: #dc2626; }
   </style>
 </head>
 <body>
@@ -489,7 +506,10 @@
   </div>
 </div>
 
+<input type="file" id="iter-file-input" accept=".csv" style="display:none">
+
 <div id="analysis-area">
+  <div id="iteration-tabs"></div>
   <div class="analysis-bar">
     <span class="analysis-bar-title">Path Analysis</span>
     <span class="stat-pill" id="stat-p"></span>
@@ -497,7 +517,8 @@
     <span class="stat-pill" id="stat-l"></span>
     <div class="bar-actions">
       <button class="btn-export" onclick="exportReport()">↓ Export Report</button>
-      <button class="btn-reload" onclick="resetToUpload()">↩ Load another file</button>
+      <button class="btn-reload" onclick="addIteration()">＋ Add iteration</button>
+      <button class="btn-reload" onclick="resetToUpload()">↩ Reset</button>
     </div>
   </div>
 
@@ -516,9 +537,11 @@
 <script>
 'use strict';
 
-var taskDataStore    = {};
-var allRows          = [];
-var currentTaskOrder = [];
+var iterations         = [];   /* [{label, taskDataStore, allRows, taskOrder, statP, statT, statL, renderedPre, renderedTasks, renderedPost}] */
+var activeIterationIdx = -1;
+var taskDataStore      = {};   /* always points at iterations[activeIterationIdx].taskDataStore */
+var allRows            = [];   /* always points at iterations[activeIterationIdx].allRows */
+var currentTaskOrder   = [];   /* always points at iterations[activeIterationIdx].taskOrder */
 
 /* ── Utilities ────────────────────────────────────────────────────────────── */
 function esc(s) {
@@ -1647,10 +1670,61 @@ function exportReport() {
   URL.revokeObjectURL(url);
 }
 
+/* ── Iteration management ─────────────────────────────────────────────────── */
+function renderIterationTabs() {
+  var el = document.getElementById('iteration-tabs');
+  if (iterations.length < 2) { el.innerHTML = ''; return; }
+  var html = '<div class="iter-tabs">';
+  iterations.forEach(function (iter, i) {
+    html += '<button class="iter-tab' + (i === activeIterationIdx ? ' active' : '') +
+      '" onclick="switchIteration(' + i + ')">' +
+      esc(iter.label) +
+      '<span class="iter-tab-remove" onclick="event.stopPropagation();removeIteration(' + i + ')" title="Remove">×</span>' +
+    '</button>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function applyActiveIteration() {
+  var iter = iterations[activeIterationIdx];
+  taskDataStore    = iter.taskDataStore;
+  allRows          = iter.allRows;
+  currentTaskOrder = iter.taskOrder;
+  document.getElementById('stat-p').textContent = iter.statP;
+  document.getElementById('stat-t').textContent = iter.statT;
+  document.getElementById('stat-l').textContent = iter.statL;
+  document.getElementById('pre-study-container').innerHTML  = iter.renderedPre;
+  document.getElementById('tasks-container').innerHTML      = iter.renderedTasks;
+  document.getElementById('post-study-container').innerHTML = iter.renderedPost;
+}
+
+function switchIteration(idx) {
+  activeIterationIdx = idx;
+  renderIterationTabs();
+  applyActiveIteration();
+}
+
+function removeIteration(idx) {
+  iterations.splice(idx, 1);
+  if (!iterations.length) { resetToUpload(); return; }
+  activeIterationIdx = Math.min(activeIterationIdx, iterations.length - 1);
+  renderIterationTabs();
+  applyActiveIteration();
+}
+
+function addIteration() {
+  document.getElementById('iter-file-input').value = '';
+  document.getElementById('iter-file-input').click();
+}
+
+function labelFromFilename(name) {
+  return name.replace(/\.csv$/i, '').replace(/[_-]+/g, ' ').trim() || ('Iteration ' + (iterations.length + 1));
+}
+
 /* ── Main ─────────────────────────────────────────────────────────────────── */
-function processCSV(text) {
+function processCSV(text, label) {
   var all  = parseCSV(text);
-  allRows  = all;
   var rows = all.filter(function (r) {
     return r.task_id && r.task_id !== 'pre_test' && r.task_id !== 'post_study';
   });
@@ -1659,9 +1733,6 @@ function processCSV(text) {
     alert('No task rows found. Make sure the CSV uses the tree-test export format (columns: task_id, path_events, path_labels, correct, …).');
     return;
   }
-
-  taskDataStore    = {};
-  currentTaskOrder = [];
 
   var taskMap = {}, taskOrder = [];
   rows.forEach(function (r) {
@@ -1674,48 +1745,77 @@ function processCSV(text) {
     var nb = parseInt(b.replace(/\D/g, ''), 10) || 0;
     return na - nb;
   });
-  currentTaskOrder = taskOrder;
 
   var pids = {}, langs = {};
   rows.forEach(function (r) { pids[r.participant_id] = true; if (r.language) langs[r.language] = true; });
   var nP = Object.keys(pids).length;
 
-  document.getElementById('stat-p').textContent = nP + ' participant' + (nP !== 1 ? 's' : '');
-  document.getElementById('stat-t').textContent = taskOrder.length + ' task' + (taskOrder.length !== 1 ? 's' : '');
-  document.getElementById('stat-l').textContent = Object.keys(langs).join('+').toUpperCase() || '—';
+  /* Build the iteration object; point globals at it so render functions
+     (renderTask, renderFirstClickPie) populate the right taskDataStore */
+  var iter = {
+    label:         label || ('Iteration ' + (iterations.length + 1)),
+    taskDataStore: {},
+    allRows:       all,
+    taskOrder:     taskOrder,
+    statP: nP + ' participant' + (nP !== 1 ? 's' : ''),
+    statT: taskOrder.length + ' task' + (taskOrder.length !== 1 ? 's' : ''),
+    statL: Object.keys(langs).join('+').toUpperCase() || '—'
+  };
 
-  document.getElementById('pre-study-container').innerHTML =
-    renderPreStudy(all.filter(function (r) { return r.task_id === 'pre_test'; }));
-  document.getElementById('tasks-container').innerHTML =
-    taskOrder.map(function (tid) { return renderTask(tid, taskMap[tid]); }).join('');
-  document.getElementById('post-study-container').innerHTML =
-    renderPostStudy(all.filter(function (r) { return r.task_id === 'post_study'; }));
+  taskDataStore    = iter.taskDataStore;
+  allRows          = iter.allRows;
+  currentTaskOrder = iter.taskOrder;
 
-  document.getElementById('upload-area').style.display  = 'none';
+  iter.renderedPre   = renderPreStudy(all.filter(function (r) { return r.task_id === 'pre_test'; }));
+  iter.renderedTasks = taskOrder.map(function (tid) { return renderTask(tid, taskMap[tid]); }).join('');
+  iter.renderedPost  = renderPostStudy(all.filter(function (r) { return r.task_id === 'post_study'; }));
+
+  iterations.push(iter);
+  activeIterationIdx = iterations.length - 1;
+
+  renderIterationTabs();
+  applyActiveIteration();
+
+  document.getElementById('upload-area').style.display   = 'none';
   document.getElementById('analysis-area').style.display = 'block';
 }
 
 function resetToUpload() {
-  allRows          = [];
-  currentTaskOrder = [];
-  taskDataStore    = {};
+  iterations         = [];
+  activeIterationIdx = -1;
+  allRows            = [];
+  currentTaskOrder   = [];
+  taskDataStore      = {};
   document.getElementById('upload-area').style.display      = 'block';
   document.getElementById('analysis-area').style.display    = 'none';
+  document.getElementById('iteration-tabs').innerHTML        = '';
   document.getElementById('pre-study-container').innerHTML  = '';
   document.getElementById('tasks-container').innerHTML      = '';
   document.getElementById('post-study-container').innerHTML = '';
   document.getElementById('file-input').value               = '';
+  document.getElementById('iter-file-input').value          = '';
 }
 
 /* ── File I/O ─────────────────────────────────────────────────────────────── */
-var dropZone  = document.getElementById('drop-zone');
-var fileInput = document.getElementById('file-input');
+var dropZone      = document.getElementById('drop-zone');
+var fileInput     = document.getElementById('file-input');
+var iterFileInput = document.getElementById('iter-file-input');
 
 fileInput.addEventListener('change', function () {
   var f = fileInput.files[0];
   if (!f) return;
+  var label = labelFromFilename(f.name);
   var r = new FileReader();
-  r.onload = function (e) { processCSV(e.target.result); };
+  r.onload = function (e) { processCSV(e.target.result, label); };
+  r.readAsText(f, 'UTF-8');
+});
+
+iterFileInput.addEventListener('change', function () {
+  var f = iterFileInput.files[0];
+  if (!f) return;
+  var label = labelFromFilename(f.name);
+  var r = new FileReader();
+  r.onload = function (e) { processCSV(e.target.result, label); };
   r.readAsText(f, 'UTF-8');
 });
 
@@ -1726,8 +1826,9 @@ dropZone.addEventListener('drop',      function (e) {
   dropZone.classList.remove('drag-over');
   var f = e.dataTransfer.files[0];
   if (!f) return;
+  var label = labelFromFilename(f.name);
   var r = new FileReader();
-  r.onload = function (ev) { processCSV(ev.target.result); };
+  r.onload = function (ev) { processCSV(ev.target.result, label); };
   r.readAsText(f, 'UTF-8');
 });
 

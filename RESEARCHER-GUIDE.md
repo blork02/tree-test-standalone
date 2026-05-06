@@ -17,7 +17,9 @@ Step-by-step workflow for running and analysing a tree test session.
 
 ---
 
-## Step 1 — Set up the content (one-time)
+## Step 1 — Set up the content
+
+### First iteration
 
 If you need to change tasks, tree labels, or instructions:
 
@@ -28,6 +30,16 @@ If you need to change tasks, tree labels, or instructions:
 5. GitHub Pages will update automatically within a minute or two.
 
 > The admin editor only saves when you export. Refreshing the page discards unsaved changes.
+
+### Starting a new iteration (v2, v3 …)
+
+Each iteration has its own tree structure and correct answers. Before editing for a new iteration:
+
+1. **Archive the current config**: rename `config.js` to `config-v1.js` (or `config-2025-05.js`) in the repository. This is the frozen record of what participants saw.
+2. Edit the new `config.js` via admin.html as above.
+3. **Name your merged CSV files by iteration** when you collect data: `merged-v1.csv`, `merged-v2.csv`, etc. Path analysis keeps all iterations in memory so you can switch between them — the filename becomes the tab label.
+
+> Archiving `config.js` is a manual step. Do it before editing, not after.
 
 ---
 
@@ -81,10 +93,25 @@ You can add files incrementally: click "Add more files" to append new participan
    - **Summary stats**: N participants, % correct, % first-click correct (first-answer attempt), median time, mean confidence.
    - **Path flow explorer**: a collapsible trie of navigation paths (which branches participants opened, in sequence). Colour-coded: green = correct, red shades = wrong.
    - **First opened category (first click)**: pie chart showing which Tier-1 category participants navigated into first. Green slice = the category containing the correct answer. This is the tree-test "first click" metric.
+   - **Participant comments**: per-task free-text comments, shown below the path explorer.
+4. A collapsible **Pre-study profile** section appears above the tasks, and a **Post-study analysis** section (ease ratings, perception adjectives, open comments) appears below.
 
 > The "First opened category" chart and "% first-click correct" in the summary bar measure different things:
 > - **First opened category** = the Tier-1 *branch* participants opened first (navigation direction).
 > - **First-click correct** = whether the first *leaf* they selected matched the correct answer.
+
+### Loading multiple iterations
+
+To compare data across iterations in the same session:
+
+1. Load the first iteration's merged CSV as usual (`merged-v1.csv`).
+2. Click **＋ Add iteration** in the top bar.
+3. Select the next iteration's merged CSV (`merged-v2.csv`).
+4. A tab row appears — click any tab to switch between iterations. The tab label is derived from the filename; name your files descriptively.
+5. To remove an iteration from the session, click **×** on its tab.
+6. **↩ Reset** clears all iterations and returns to the upload screen.
+
+> All processing stays in-browser. Loading a second iteration does not replace the first — both stay in memory until you reset.
 
 ---
 
