@@ -20,7 +20,7 @@ Participants complete a full session in one sitting:
 1. **Language selector** — FR or NL (skip with `?lang=nl` URL parameter)
 2. **Participant ID** — pre-filled with a random code (e.g. `P-3847`), editable
 3. **Instructions** — brief explanation of the task
-4. **8 tree-test tasks** — presented in randomised order, each with:
+4. **15 tree-test tasks** — presented in randomised order, each with:
    - A scenario description
    - The full category tree to navigate
    - A breadcrumb showing the current selection

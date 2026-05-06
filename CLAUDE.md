@@ -94,7 +94,11 @@ Task order uses a seeded LCG shuffle (`Math.imul`) so the seed is recorded in th
 - `renderFirstClickPie(rows, correctInfo, taskId)` — SVG pie (100×100); correct slice = `#16a34a` green, wrong slices cycle through shaded reds; handles the single-slice case with a `<circle>` fallback; adds a "Copy PNG" button when `taskId` is provided
 - `copyPiePNG(taskId)` — renders the first-click pie + legend to a 2× Canvas and copies it to clipboard; falls back to download if `navigator.clipboard` is unavailable (e.g. `file://`)
 - `copyTaskOverviewPNG(taskId)` — renders a task summary card (outcome bar, counts, stats panel, correct answers) to a 2× Canvas with the same clipboard/download fallback
-- `generateReport()` / `exportReport()` — produce a structured Markdown report with YAML frontmatter (overview table, per-task path flow, post-study analysis, pre-test profile) and trigger a `.md` download
+- `renderStackedBarFromFreq(freq, total, colorFn)` — horizontal stacked bar + swatch legend; used by pre/post study sections; `colorFn` is optional (defaults to `PALETTE`); entries sort numerically if values are numbers, alphabetically otherwise
+- `renderPreStudy(preRows)` — collapsible section rendered before the task list (`#pre-study-container`); discovers all `pretest_*` columns dynamically; one stacked bar per question
+- `renderPostStudy(postRows)` — collapsible section rendered after the task list (`#post-study-container`); ease rating stacked bar (red 1 → green 5), perception adjectives horizontal bar chart from `structure_words` + inline tags for `structure_other` open-ended responses, open comments list
+- `renderTask` appends a `commentsHtml` block (`.task-comments`) at the bottom of each task body when any row has a non-empty `comment` field
+- `generateReport()` / `exportReport()` — produce a structured Markdown report with YAML frontmatter (overview table, per-task path flow including comments, post-study analysis including `structure_other` open-ended adjectives, pre-test profile) and trigger a `.md` download
 - Global `taskDataStore` holds per-task data keyed by `task_id` (set in `renderTask`, augmented by `renderFirstClickPie`); `allRows` and `currentTaskOrder` are module-level state used by `generateReport`
 - Catastrophe metric: `correct === 'false'` AND `parseInt(confidence) >= 4`; shown as a purple chip in the outcome row and always-visible stat (gray at 0, purple when > 0)
 - Task sections sorted numerically by the integer suffix of `task_id` (task1, task2, …)
@@ -116,6 +120,6 @@ Full column reference and the analysis prompt template for Claude are in `ANALYS
 ## Editing content
 
 - **Add/change tasks**: edit `CONFIG.tasks` in `config.js`. `correct_nl`/`correct_fr` must be valid leaf node IDs from the respective tree. The session always runs all tasks in the array in randomised order.
-- **Fill in the FR tree**: populate `label` strings in `CONFIG.trees.fr` and `scenario_fr`/`correct_fr` in each task. Top-level children of the tree root also appear as options in the "hardest categories" multiselect on the post-study screen.
+- **Fill in the FR tree**: populate `label` strings in `CONFIG.trees.fr` and `scenario_fr`/`correct_fr` in each task. Top-level children of the tree root also appear as options in the perception-adjectives multiselect on the post-study screen.
 - **Add UI strings**: add keys to both `CONFIG.i18n.fr` and `CONFIG.i18n.nl`; reference them with `t('key')` in `app.js`.
 - **Styles**: `styles.css` uses plain CSS with no preprocessor. All colours are hardcoded; blue = `#1d4ed8`, green = `#16a34a`.
