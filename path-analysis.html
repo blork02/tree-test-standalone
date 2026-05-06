@@ -482,6 +482,44 @@
       cursor: pointer; padding: 0; line-height: 1; font-family: inherit; margin-left: 0.125rem;
     }
     .iter-tab-remove:hover { color: #dc2626; }
+    .iter-tab-compare { border-style: dashed; }
+
+    /* ── Comparison view ──────────────────────────────────────────────────── */
+    .comp-summary-card {
+      background: white; border: 1px solid #e5e7eb; border-radius: 8px;
+      padding: 1rem 1.25rem; margin-bottom: 1rem;
+      display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;
+    }
+    .comp-summary-nums { display: flex; gap: 1.5rem; margin-left: auto; flex-shrink: 0; }
+    .comp-summary-stat { text-align: center; }
+    .comp-summary-num { font-size: 1.375rem; font-weight: 700; line-height: 1.2; }
+    .comp-summary-lbl { font-size: 0.7rem; color: #6b7280; text-transform: uppercase; letter-spacing: .04em; }
+    .comp-task {
+      background: white; border: 1px solid #e5e7eb; border-radius: 8px;
+      margin-bottom: 0.5rem; border-left: 3px solid transparent;
+    }
+    .comp-task.improved  { border-left-color: #16a34a; }
+    .comp-task.regressed { border-left-color: #dc2626; }
+    .comp-row {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.6875rem 1rem; flex-wrap: wrap;
+    }
+    .comp-scenario { flex: 1; font-size: 0.8125rem; color: #374151; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .comp-metrics { display: flex; gap: 1.25rem; align-items: center; flex-shrink: 0; }
+    .comp-metric { display: flex; flex-direction: column; align-items: flex-end; }
+    .comp-metric-lbl { font-size: 0.65rem; color: #9ca3af; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 0.1rem; white-space: nowrap; }
+    .comp-metric-val { font-size: 0.8125rem; color: #374151; display: flex; align-items: center; gap: 0.3rem; }
+    .delta { font-size: 0.75rem; font-weight: 700; }
+    .delta.up   { color: #16a34a; }
+    .delta.down { color: #dc2626; }
+    .delta.flat { color: #9ca3af; }
+    .conf-badge { font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.45rem; border-radius: 4px; white-space: nowrap; }
+    .conf-badge.strong-up   { background: #dcfce7; color: #15803d; }
+    .conf-badge.likely-up   { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    .conf-badge.unclear     { background: #f3f4f6; color: #9ca3af; }
+    .conf-badge.likely-down { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+    .conf-badge.strong-down { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .comp-note { font-size: 0.75rem; color: #9ca3af; font-style: italic; margin-top: 0.75rem; }
   </style>
 </head>
 <body>
@@ -532,6 +570,7 @@
   <div id="pre-study-container"></div>
   <div id="tasks-container"></div>
   <div id="post-study-container"></div>
+  <div id="compare-container" style="display:none"></div>
 </div>
 
 <script>
@@ -1670,6 +1709,163 @@ function exportReport() {
   URL.revokeObjectURL(url);
 }
 
+/* ── Bayesian Beta-Binomial comparison ────────────────────────────────────── */
+function _randNormal() {
+  var u = 0, v = 0;
+  while (!u) u = Math.random();
+  while (!v) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+function _sampleGamma(shape) {
+  if (shape < 1) return _sampleGamma(shape + 1) * Math.pow(Math.random(), 1 / shape);
+  var d = shape - 1 / 3, c = 1 / Math.sqrt(9 * d);
+  for (;;) {
+    var x, v;
+    do { x = _randNormal(); v = 1 + c * x; } while (v <= 0);
+    v = v * v * v;
+    var u = Math.random(), x2 = x * x;
+    if (u < 1 - 0.0331 * x2 * x2) return d * v;
+    if (Math.log(u) < 0.5 * x2 + d * (1 - v + Math.log(v))) return d * v;
+  }
+}
+function _sampleBeta(a, b) {
+  var ga = _sampleGamma(a), gb = _sampleGamma(b);
+  return ga / (ga + gb);
+}
+function probBetter(c1, n1, c2, n2) {
+  /* P(true accuracy v2 > v1) via Beta(c+1, n-c+1) posterior, 5 000 MC draws */
+  if (!n1 || !n2) return null;
+  var count = 0;
+  for (var i = 0; i < 5000; i++) {
+    if (_sampleBeta(c2 + 1, n2 - c2 + 1) > _sampleBeta(c1 + 1, n1 - c1 + 1)) count++;
+  }
+  return count / 5000;
+}
+
+/* ── Comparison renderer ──────────────────────────────────────────────────── */
+function renderComparison(iter1, iter2) {
+  /* Collect all task IDs in numeric order */
+  var seen = {};
+  iter1.taskOrder.forEach(function (t) { seen[t] = true; });
+  iter2.taskOrder.forEach(function (t) { seen[t] = true; });
+  var tids = Object.keys(seen).sort(function (a, b) {
+    return (parseInt(a.replace(/\D/g, ''), 10) || 0) - (parseInt(b.replace(/\D/g, ''), 10) || 0);
+  });
+
+  /* Build per-task rows */
+  var totalC1 = 0, totalN1 = 0, totalC2 = 0, totalN2 = 0;
+  var taskRows = tids.map(function (tid) {
+    var d1 = iter1.taskDataStore[tid], d2 = iter2.taskDataStore[tid];
+    if (!d1 && !d2) return null;
+    var r = { tid: tid, scenario: (d1 || d2).scenario };
+    if (d1) {
+      r.c1   = d1.outs.direct + d1.outs.indirect;
+      r.n1   = d1.total;
+      r.fc1  = d1.rows.filter(function (row) { return row.first_click_correct === 'true'; }).length;
+      r.cat1 = d1.catastrophes;
+      totalC1 += r.c1; totalN1 += r.n1;
+    }
+    if (d2) {
+      r.c2   = d2.outs.direct + d2.outs.indirect;
+      r.n2   = d2.total;
+      r.fc2  = d2.rows.filter(function (row) { return row.first_click_correct === 'true'; }).length;
+      r.cat2 = d2.catastrophes;
+      totalC2 += r.c2; totalN2 += r.n2;
+    }
+    if (d1 && d2) r.pBetter = probBetter(r.c1, r.n1, r.c2, r.n2);
+    return r;
+  }).filter(Boolean);
+
+  /* Sort: highest P(improved) first */
+  taskRows.sort(function (a, b) {
+    return (b.pBetter != null ? b.pBetter : 0.5) - (a.pBetter != null ? a.pBetter : 0.5);
+  });
+
+  /* Summary counts */
+  var nUp = 0, nDown = 0, nFlat = 0;
+  taskRows.forEach(function (r) {
+    if (r.pBetter == null) { nFlat++; }
+    else if (r.pBetter >= 0.80) { nUp++; }
+    else if (r.pBetter <= 0.20) { nDown++; }
+    else { nFlat++; }
+  });
+
+  /* HTML helpers */
+  function pp(n) { return n != null ? Math.round(n * 100) + '%' : '—'; }
+  function deltaHtml(v1, v2) {
+    if (v1 == null || v2 == null) return '';
+    var d = Math.round((v2 - v1) * 100);
+    var cls = d > 0 ? 'up' : (d < 0 ? 'down' : 'flat');
+    return '<span class="delta ' + cls + '">' + (d > 0 ? '+' : '') + d + 'pp</span>';
+  }
+  function confBadge(p) {
+    if (p == null) return '<span class="conf-badge unclear">—</span>';
+    var pct = Math.round(p * 100);
+    if (p >= 0.95) return '<span class="conf-badge strong-up">✓ ' + pct + '% — strong</span>';
+    if (p >= 0.80) return '<span class="conf-badge likely-up">↑ ' + pct + '% — likely</span>';
+    if (p <= 0.05) return '<span class="conf-badge strong-down">✗ ' + (100 - pct) + '% — strong ↓</span>';
+    if (p <= 0.20) return '<span class="conf-badge likely-down">↓ ' + (100 - pct) + '% — likely ↓</span>';
+    return '<span class="conf-badge unclear">~ ' + pct + '% — unclear</span>';
+  }
+  function rowCls(p) {
+    if (p == null) return '';
+    return p >= 0.80 ? ' improved' : (p <= 0.20 ? ' regressed' : '');
+  }
+
+  var n1 = parseInt(iter1.statP) || '?';
+  var n2 = parseInt(iter2.statP) || '?';
+  var oa1 = totalN1 ? pp(totalC1 / totalN1) : '—';
+  var oa2 = totalN2 ? pp(totalC2 / totalN2) : '—';
+
+  var summaryHtml =
+    '<div class="comp-summary-card">' +
+      '<div>' +
+        '<div style="font-weight:700;font-size:0.9375rem;margin-bottom:0.25rem">' +
+          esc(iter1.label) + ' <span style="color:#9ca3af;font-weight:400;font-size:0.875rem">vs</span> ' + esc(iter2.label) +
+        '</div>' +
+        '<div style="font-size:0.8125rem;color:#6b7280">' +
+          'N=' + n1 + ' → N=' + n2 + ' &nbsp;·&nbsp; overall accuracy ' + oa1 + ' → ' + oa2 +
+        '</div>' +
+      '</div>' +
+      '<div class="comp-summary-nums">' +
+        '<div class="comp-summary-stat"><div class="comp-summary-num" style="color:#16a34a">' + nUp + '</div><div class="comp-summary-lbl">improved</div></div>' +
+        '<div class="comp-summary-stat"><div class="comp-summary-num" style="color:#9ca3af">' + nFlat + '</div><div class="comp-summary-lbl">inconclusive</div></div>' +
+        '<div class="comp-summary-stat"><div class="comp-summary-num" style="color:#dc2626">' + nDown + '</div><div class="comp-summary-lbl">regressed</div></div>' +
+      '</div>' +
+    '</div>';
+
+  var tasksHtml = taskRows.map(function (r) {
+    var short = (r.scenario || '').length > 88 ? r.scenario.slice(0, 88) + '…' : (r.scenario || '');
+    var bothPresent = r.c1 != null && r.c2 != null;
+    var accVal = bothPresent
+      ? pp(r.c1 / r.n1) + ' → ' + pp(r.c2 / r.n2) + ' ' + deltaHtml(r.c1 / r.n1, r.c2 / r.n2)
+      : (r.c1 != null ? pp(r.c1 / r.n1) + ' (v1 only)' : pp(r.c2 / r.n2) + ' (v2 only)');
+    var fcVal = bothPresent ? pp(r.fc1 / r.n1) + ' → ' + pp(r.fc2 / r.n2) : '—';
+    var catVal = bothPresent ? r.cat1 + ' → ' + r.cat2 : (r.cat1 != null ? r.cat1 : r.cat2);
+    return (
+      '<div class="comp-task' + rowCls(r.pBetter) + '">' +
+        '<div class="comp-row">' +
+          '<span class="ts-badge">' + esc(r.tid) + '</span>' +
+          '<span class="comp-scenario" title="' + esc(r.scenario || '') + '">' + esc(short) + '</span>' +
+          '<div class="comp-metrics">' +
+            '<div class="comp-metric"><div class="comp-metric-lbl">Accuracy</div><div class="comp-metric-val">' + accVal + '</div></div>' +
+            '<div class="comp-metric"><div class="comp-metric-lbl">P(v2&nbsp;better)</div><div class="comp-metric-val">' + confBadge(r.pBetter) + '</div></div>' +
+            '<div class="comp-metric"><div class="comp-metric-lbl">First-click</div><div class="comp-metric-val">' + fcVal + '</div></div>' +
+            '<div class="comp-metric"><div class="comp-metric-lbl">Catastrophes</div><div class="comp-metric-val">' + catVal + '</div></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }).join('');
+
+  var noteHtml =
+    '<p class="comp-note">Bayesian Beta-Binomial model (Laplace prior). ' +
+    'P(v2 better) = probability the true accuracy rate improved, estimated via 5,000 Monte Carlo draws. ' +
+    '"Likely" = P ≥ 80 %, "Strong" = P ≥ 95 %. Tasks sorted by P(improved), highest first.</p>';
+
+  return summaryHtml + tasksHtml + noteHtml;
+}
+
 /* ── Iteration management ─────────────────────────────────────────────────── */
 function renderIterationTabs() {
   var el = document.getElementById('iteration-tabs');
@@ -1682,8 +1878,23 @@ function renderIterationTabs() {
       '<span class="iter-tab-remove" onclick="event.stopPropagation();removeIteration(' + i + ')" title="Remove">×</span>' +
     '</button>';
   });
+  if (iterations.length === 2) {
+    html += '<button class="iter-tab iter-tab-compare' + (activeIterationIdx === -2 ? ' active' : '') +
+      '" onclick="switchToCompare()">↔ Compare</button>';
+  }
   html += '</div>';
   el.innerHTML = html;
+}
+
+function switchToCompare() {
+  activeIterationIdx = -2;
+  renderIterationTabs();
+  document.getElementById('pre-study-container').style.display  = 'none';
+  document.getElementById('tasks-container').style.display      = 'none';
+  document.getElementById('post-study-container').style.display = 'none';
+  var cc = document.getElementById('compare-container');
+  cc.style.display = 'block';
+  cc.innerHTML = renderComparison(iterations[0], iterations[1]);
 }
 
 function applyActiveIteration() {
@@ -1701,6 +1912,10 @@ function applyActiveIteration() {
 
 function switchIteration(idx) {
   activeIterationIdx = idx;
+  document.getElementById('compare-container').style.display    = 'none';
+  document.getElementById('pre-study-container').style.display  = '';
+  document.getElementById('tasks-container').style.display      = '';
+  document.getElementById('post-study-container').style.display = '';
   renderIterationTabs();
   applyActiveIteration();
 }
@@ -1708,7 +1923,16 @@ function switchIteration(idx) {
 function removeIteration(idx) {
   iterations.splice(idx, 1);
   if (!iterations.length) { resetToUpload(); return; }
-  activeIterationIdx = Math.min(activeIterationIdx, iterations.length - 1);
+  /* Exit compare mode if active, or adjust index */
+  if (activeIterationIdx === -2 || activeIterationIdx >= iterations.length) {
+    activeIterationIdx = 0;
+    document.getElementById('compare-container').style.display    = 'none';
+    document.getElementById('pre-study-container').style.display  = '';
+    document.getElementById('tasks-container').style.display      = '';
+    document.getElementById('post-study-container').style.display = '';
+  } else if (activeIterationIdx > idx) {
+    activeIterationIdx--;
+  }
   renderIterationTabs();
   applyActiveIteration();
 }
@@ -1789,9 +2013,14 @@ function resetToUpload() {
   document.getElementById('upload-area').style.display      = 'block';
   document.getElementById('analysis-area').style.display    = 'none';
   document.getElementById('iteration-tabs').innerHTML        = '';
+  document.getElementById('compare-container').innerHTML    = '';
+  document.getElementById('compare-container').style.display    = 'none';
   document.getElementById('pre-study-container').innerHTML  = '';
+  document.getElementById('pre-study-container').style.display  = '';
   document.getElementById('tasks-container').innerHTML      = '';
+  document.getElementById('tasks-container').style.display      = '';
   document.getElementById('post-study-container').innerHTML = '';
+  document.getElementById('post-study-container').style.display = '';
   document.getElementById('file-input').value               = '';
   document.getElementById('iter-file-input').value          = '';
 }
