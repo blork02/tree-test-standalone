@@ -18,6 +18,7 @@ A standalone, zero-dependency tree test for UX research. No build step. Open `in
 | `merge-csv.html` | Drag-and-drop tool to merge individual participant CSVs into one file for `path-analysis.html` |
 | `RESEARCHER-GUIDE.md` | Step-by-step workflow guide for the researcher (session setup → data collection → analysis) |
 | `SLIDES-GUIDE.md` | Instructions for turning an exported report into a Figma slide deck using Claude (prompt template + Figma MCP steps) |
+| `REPORT-GUIDE.md` | Preferred reporting workflow — give Claude both the merged CSV and the exported `.md` from `path-analysis.html`; Claude produces an Obsidian-ready `.md` report in English or French (not Dutch); includes prompt templates for single-iteration and comparison reports |
 | `_preview-download.html` | Static preview of the download screen — open directly to iterate on its styles without completing a full session |
 
 ## Development
